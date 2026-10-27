@@ -216,6 +216,11 @@ tr.selrow td{background:var(--accent-soft)}
 }
 
 #strength{display:flex;flex-direction:column;gap:14px}
+.stabs{display:none;gap:4px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;position:sticky;top:calc(var(--mbar-h,62px) + 6px);z-index:3}
+.stabs button{flex:1 1 0;min-width:0;min-height:44px;font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:7px;padding:4px 6px;cursor:pointer;line-height:1.2}
+.stabs button small{display:block;font-weight:400;font-size:11px}
+.stabs button[aria-pressed=true]{background:var(--accent-soft);color:var(--ink)}
+.stabs button.ok small{color:var(--ok)}
 #garmin{display:flex;flex-direction:column;gap:18px}
 #tabbar,#mbar{display:none}
 button{touch-action:manipulation}
@@ -234,6 +239,8 @@ button{touch-action:manipulation}
   body[data-view=woche] #week .side{display:none}
   body[data-view=workouts] #week > .card:first-child{display:none}
   body[data-view=kraft] #strength{display:flex}
+  .stabs{display:flex}
+  .s-grid > .card.s-off{display:none}
   body[data-view=garmin] #garmin{display:flex}
   /* Kopf kompakt */
   .hero{gap:10px 20px;align-items:center}
@@ -1588,6 +1595,7 @@ function render() { renderHero(); renderStrip(); renderWeek(); renderStrengthSaf
 
 /* ---------- Krafttraining ---------- */
 let editS = false, pendingS = false, focusNew = null;
+let sTab = (() => { try { return localStorage.getItem('ef27.stab'); } catch (e) { return null; } })();  // Handy: gewählte Einheit im Kraft-Tab
 const logKey = (n, sid) => 'w' + pad(n) + '_' + sid;
 // Stabi-Block nach Rolle B (Samstag): dritte Einheit im Kraftplan, Werte in Sekunden oder Wiederholungen
 const STABI_DEFAULT = () => ({ id: 's3', name: 'Stabi-Block', day: 5, unit: 's / Wdh.', exercises: [
@@ -1829,6 +1837,7 @@ function renderStrength() {
   if (w.kind === 'deload') chips.push('Entlastungswoche: gleiche Gewichte, nur 2 Sätze');
   if (w.phase === 4) chips.push('Phase 4: kurz halten, Kraft 2 ist optional');
   const dayOf = ps => typeof ps.day === 'number' ? ps.day : (ps.id === 's1' ? 2 : 6);
+  const tabs = [];
   const cards = Store.splan.sessions.slice().sort((a, b) => dayOf(a) - dayOf(b)).map(ps => {
     const base = typeof ps.day === 'number' ? ps.day : (ps.id === 's1' ? 2 : 6);
     const orig = ps.id === 's1' ? 2 : ps.id === 's2' ? 6 : ps.id === 's3' ? 5 : base;
@@ -1860,14 +1869,22 @@ function renderStrength() {
       ? `<div class="s-h"><input class="fld" style="max-width:240px;font-weight:600" data-edit="sname" data-sess="${esc(ps.id)}" value="${esc(ps.name)}" aria-label="Name der Einheit"><input class="fld" style="max-width:110px" data-edit="unit" data-sess="${esc(ps.id)}" value="${esc(unitOf(ps))}" placeholder="Einheit" aria-label="Einheit der Werte, z. B. kg oder s"></div>`
       : `<div class="s-h"><div><h3>${esc(ps.name)}</h3><span class="muted">${DOW[dayIdx]} ${fmtDM(date)}${ps.exercises.length ? ' · ' + doneEx + ' von ' + ps.exercises.length + ' Übungen' : ''}</span></div>
           <button class="btn sm${done ? ' okb' : ' ghost'}" data-sdone="${key}" data-wn="${w.n}" data-sid="${esc(ps.id)}" aria-pressed="${done}">${done ? 'Erledigt ✓' : 'Abhaken'}</button></div>`;
-    return `<div class="card">${head2}${body}</div>`;
+    tabs.push({ id: ps.id, label: (ps.name || 'Einheit').split(' · ')[0], day: dayIdx, date, done });
+    return `<div class="card" data-scard="${esc(ps.id)}">${head2}${body}</div>`;
   }).join('');
+  // Handy: nur eine Einheit zeigen. Ohne Wahl die nächste offene dieser Woche, sonst die erste.
+  const pick = tabs.find(t => t.id === sTab) || tabs.find(t => !t.done && daysBetween(TODAY, t.date) >= 0) || tabs[0];
+  const cur = pick ? pick.id : null;
+  const stabs = tabs.length > 1 ? `<div class="stabs" role="group" aria-label="Einheit wählen">${tabs.map(t =>
+    `<button data-stab="${esc(t.id)}" aria-pressed="${t.id === cur}"${t.done ? ' class="ok"' : ''}>${esc(t.label)}<small>${DOW[t.day]}${t.done ? ' ✓' : ''}</small></button>`).join('')}</div>` : '';
+  const cardsSel = tabs.length > 1 ? cards.replace(/<div class="card" data-scard="([^"]*)">/g, (m, id) => id === esc(cur) ? m : `<div class="card s-off" data-scard="${id}">`) : cards;
   const sample = Store.splan.sample ? `<div class="banner">Das ist ein Beispielplan. Ändere ihn unter „Plan bearbeiten“ oder schick mir deinen Plan im Chat, dann trage ich ihn ein.</div>` : '';
   const btn = `<button class="btn ghost" data-action="s-edit">${editS ? 'Fertig' : 'Plan bearbeiten'}</button>`;
   el.innerHTML = head(btn)
     + (chips.length ? `<div class="pills" style="margin:0">${chips.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>` : '')
     + sample + (planSession('s3') ? '' : `<div class="banner">Neu: ein kurzer Stabi-Block nach der Rolle B am Samstag. <button class="btn sm" data-action="stabi-create">Stabi-Block anlegen</button></div>`)
-    + `<div class="s-grid">${cards}</div>`;
+    + stabs + `<div class="s-grid">${cardsSel}</div>`;
+  const mb = $('#mbar'); if (stabs && mb && mb.offsetHeight) document.documentElement.style.setProperty('--mbar-h', mb.offsetHeight + 'px');  // Auswahl klebt unter der Wochenwahl
   if (focusNew) { const t = el.querySelector('[data-focus="' + focusNew + '"]'); if (t) t.focus(); focusNew = null; }
 }
 
@@ -1880,6 +1897,14 @@ document.addEventListener('click', ev => {
     sel = Number(wkEl.dataset.week);
     if (isPhone() && wkEl.closest('#strip')) { view = 'woche'; try { localStorage.setItem('ef27.view', view); } catch (e) {} window.scrollTo(0, 0); }
     render(); return;
+  }
+  const stb = ev.target.closest('[data-stab]');
+  if (stb) {
+    sTab = stb.dataset.stab;
+    try { localStorage.setItem('ef27.stab', sTab); } catch (e) {}
+    renderStrength();
+    const b = $('#strength [data-stab="' + sTab + '"]'); if (b) b.focus();
+    return;
   }
   const act = ev.target.closest('[data-action]');
   if (act) {
