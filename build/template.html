@@ -983,7 +983,8 @@ function renderWeek() {
         ${window.INTERVALS_SYNC ? (() => {
           const open = files.filter(({ i }) => !pushSig(w, i).past && pushState(w, i) !== 'sent');
           return `<button class="btn" style="width:100%;margin-top:8px" data-action="push-week"${pushing || !open.length ? ' disabled' : ''}>${pushing ? 'Wird gesendet …' : open.length ? open.length + ' ' + (open.length === 1 ? 'Workout' : 'Workouts') + ' an MyWhoosh senden' : 'Alles an MyWhoosh gesendet'}</button>
-            <p class="note">Geht über intervals.icu. MyWhoosh übernimmt nur Termine der nächsten 7 Tage; Kadenz-Vorgaben kommen dabei eventuell nicht mit.</p>`;
+            <p class="note">Geht über intervals.icu. MyWhoosh übernimmt nur Termine der nächsten 7 Tage; Kadenz-Vorgaben kommen dabei eventuell nicht mit.
+              <button class="btn ghost sm" data-action="push-test"${pushing ? ' disabled' : ''}>Verbindung testen · 20 min für heute</button></p>`;
         })() : ''}
         <p class="note">${dlNote}</p>
         ${dlRows}
@@ -1703,6 +1704,22 @@ async function pushWorkouts(w, idxs) {
   } catch (e) { toast('MyWhoosh: ' + ((e && e.message) || e)); }
   pushing = false; renderWeek();
 }
+// Verbindungstest: 20 min locker für heute, mit Kadenz-Vorgaben, um zu sehen, was in MyWhoosh ankommt
+async function pushTest() {
+  if (pushing) return;
+  pushing = true; renderWeek();
+  try {
+    const steps = [{ ramp: 'Warmup', dur: 300, a: .45, b: .6 }, { dur: 300, p: .62, cad: 90, msg: 'Test: 90 U/min' },
+                   { dur: 300, p: .62, cad: 65, msg: 'Test: 65 U/min' }, { ramp: 'Cooldown', dur: 300, a: .55, b: .45 }];
+    const ev = [{ start_date_local: dkey(TODAY) + 'T00:00:00', filename: 'EF27_Test.zwo', external_id: 'ef27-test', name: 'EF27 Test · 20 min locker mit Kadenz',
+                  file_contents: makeZwo('EF27 Test: 20 min locker mit Kadenz', 'Verbindungstest aus der Trainings-App. 5 min mit 90 U/min, 5 min mit 65 U/min. Kann gelöscht werden.', steps) }];
+    const r = await window.apiFetch('api/intervals/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ev) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    toast('Test-Workout für heute an intervals.icu gesendet. In MyWhoosh nachsehen, ob die Kadenz angezeigt wird.');
+  } catch (e) { toast('MyWhoosh: ' + ((e && e.message) || e)); }
+  pushing = false; renderWeek();
+}
 function moveSession(wn, i, to) {
   const w = W[wn - 1], key = dayKey(wn, i);
   if (!canMove(w.sessions[i]) || !(to >= 0 && to <= 6)) return;
@@ -1876,6 +1893,7 @@ document.addEventListener('click', ev => {
     }
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
+    else if (a === 'push-test') pushTest();
     else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
     else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
     else if (a === 'logout') window.ef27Logout();
