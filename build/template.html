@@ -357,7 +357,7 @@ let selAct = null;
 let DL;            // undefined = wird geladen, null = nicht verfügbar
 let busy = false;
 let lastImport = [];
-const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, sloaded: false };
+const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, sloaded: false };
 
 /* ---------- Speicher: Dashboard-Datenbank, sonst Browser, sonst Sitzung ---------- */
 function localLoad() {
@@ -425,6 +425,12 @@ async function initStore() {
       snap.docs.forEach(d => { m[d.id] = JSON.parse(JSON.stringify(d.data())); });
       Store.moves = m;
       renderWeek(); renderStrengthSafe(); renderProgress();
+    }, () => {});
+    db.collection('pushes').onSnapshot(snap => {
+      const m = {};
+      snap.docs.forEach(d => { m[d.id] = JSON.parse(JSON.stringify(d.data())); });
+      Store.pushes = m;
+      renderWeek();
     }, () => {});
   } catch (e) { fail(); }
 }
@@ -947,10 +953,13 @@ function renderWeek() {
   const dlRows = files.map(({ s, i }) => {
     const info = workoutInfo(s.file);
     const orig = s.adapt && s.adapt.orig ? `<button class="btn ghost sm" data-action="zip-one" data-file="${esc(s.adapt.orig)}"${DL ? '' : ' disabled'}>Original laden</button>` : '';
+    const ps = pushState(w, i), past = pushSig(w, i).past;
+    const push = window.INTERVALS_SYNC ? `<div class="wo-m"><span>${ps === 'sent' ? '✓ an MyWhoosh gesendet' : ps === 'changed' ? 'Geändert seit dem Senden (Tag oder Workout)' : past ? 'Termin vorbei' : 'Noch nicht an MyWhoosh gesendet'}</span>
+      <button class="btn ${ps === 'changed' ? '' : 'ghost '}sm" data-action="push-one" data-i="${i}"${pushing || past ? ' disabled' : ''}>${ps === 'sent' ? 'Erneut senden' : ps === 'changed' ? 'Neu senden' : 'An MyWhoosh senden'}</button></div>` : '';
     return `<div class="wo"><div class="wo-h"><b>${DOW[dayOfSess(w, i)]} · ${esc(s.slot)}${s.adapt && s.adapt.orig ? ' · angepasst' : ''}</b><span class="muted tab">${Math.round(info.total / 60)} min · ca. ${Math.round(info.tss)} TSS</span></div>
       <div class="muted" style="font-size:13px">${esc(woTitle(s.file))}</div>
       ${profileSvg(info.steps)}
-      <div class="wo-m"><span class="tab">${esc(s.file)}</span><span>${orig} <button class="btn ghost sm" data-action="zip-one" data-file="${esc(s.file)}"${DL ? '' : ' disabled'}>Einzeln laden</button></span></div></div>`;
+      <div class="wo-m"><span class="tab">${esc(s.file)}</span><span>${orig} <button class="btn ghost sm" data-action="zip-one" data-file="${esc(s.file)}"${DL ? '' : ' disabled'}>Einzeln laden</button></span></div>${push}</div>`;
   }).join('');
   const f = Store.ftp;
   const zrows = ZONES.map(z => `<div class="zrow"><i class="sw" style="--c:var(${z.c})"></i><span>${z.n}</span><span class="p">${Math.round(z.lo * 100)}–${Math.round(z.hi * 100)} %</span><span class="wt">${Math.round(f * z.lo)}–${Math.round(f * z.hi)} W</span></div>`).join('');
@@ -971,6 +980,11 @@ function renderWeek() {
       <div class="card">
         <div class="card-h"><h3>Workouts für MyWhoosh</h3></div>
         <button class="btn" style="width:100%" data-action="zip-week"${DL && files.length ? '' : ' disabled'}>${w.kind === 'taper' ? 'Taper' : 'Woche ' + w.n} als ZIP laden · ${files.length} ${files.length === 1 ? 'Datei' : 'Dateien'}</button>
+        ${window.INTERVALS_SYNC ? (() => {
+          const open = files.filter(({ i }) => !pushSig(w, i).past && pushState(w, i) !== 'sent');
+          return `<button class="btn" style="width:100%;margin-top:8px" data-action="push-week"${pushing || !open.length ? ' disabled' : ''}>${pushing ? 'Wird gesendet …' : open.length ? open.length + ' ' + (open.length === 1 ? 'Workout' : 'Workouts') + ' an MyWhoosh senden' : 'Alles an MyWhoosh gesendet'}</button>
+            <p class="note">Geht über intervals.icu. MyWhoosh übernimmt nur Termine der nächsten 7 Tage; Kadenz-Vorgaben kommen dabei eventuell nicht mit.</p>`;
+        })() : ''}
         <p class="note">${dlNote}</p>
         ${dlRows}
         <div class="wo"><button class="btn ghost sm" data-action="zip-all"${DL ? '' : ' disabled'}>Alle ${Object.keys(DATA.workouts).length} Workouts als ZIP</button></div>
@@ -1654,6 +1668,41 @@ function moveWarning(w, i, d) {
   if (w.kind === 'taper' && d >= 5) return 'In der Rennwoche nichts mehr auf oder nach den Renntag legen.';
   return '';
 }
+/* An MyWhoosh senden: über intervals.icu (api/intervals.py). Jede Einheit hat eine feste external_id,
+   erneutes Senden nach dem Verschieben oder Anpassen ersetzt den Termin statt ihn zu verdoppeln. */
+function pushSig(w, i) {
+  const s = sessOf(w, i), date = addDays(w.startD, dayOfSess(w, i));
+  return { file: s.file, date: dkey(date), past: daysBetween(TODAY, date) < 0 };
+}
+function pushState(w, i) {
+  const p = Store.pushes[dayKey(w.n, i)];
+  if (!p) return null;
+  const g = pushSig(w, i);
+  return p.file === g.file && p.date === g.date ? 'sent' : 'changed';
+}
+let pushing = false;
+async function pushWorkouts(w, idxs) {
+  if (pushing || !idxs.length) return;
+  pushing = true; renderWeek();
+  try {
+    const events = idxs.map(i => {
+      const s = sessOf(w, i), g = pushSig(w, i);
+      return { start_date_local: g.date + 'T00:00:00', filename: s.file.replace(/[^A-Za-z0-9_.-]/g, '_'), file_contents: woXml(s.file),
+               external_id: 'ef27-' + dayKey(w.n, i), name: `W${pad(w.n)} ${DOW[dayOfSess(w, i)]} · ${s.slot}: ${woTitle(s.file)}` };
+    });
+    const r = await window.apiFetch('api/intervals/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(events) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    const at = Date.now();
+    idxs.forEach(i => {
+      const g = pushSig(w, i), doc = { week: w.n, file: g.file, date: g.date, at };
+      Store.pushes[dayKey(w.n, i)] = doc;
+      if (Store.db) enqueue(() => Store.db.collection('pushes').doc(dayKey(w.n, i)).set(doc));
+    });
+    toast(idxs.length === 1 ? 'An intervals.icu gesendet. MyWhoosh holt es von dort.' : idxs.length + ' Workouts an intervals.icu gesendet. MyWhoosh holt sie von dort.');
+  } catch (e) { toast('MyWhoosh: ' + ((e && e.message) || e)); }
+  pushing = false; renderWeek();
+}
 function moveSession(wn, i, to) {
   const w = W[wn - 1], key = dayKey(wn, i);
   if (!canMove(w.sessions[i]) || !(to >= 0 && to <= 6)) return;
@@ -1827,6 +1876,8 @@ document.addEventListener('click', ev => {
     }
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
+    else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
+    else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
     else if (a === 'logout') window.ef27Logout();
     else if (a === 'ftp-take') { const v = Number(act.dataset.v); if (v >= 80 && v <= 500) storeFtp(v).then(() => { render(); toast('FTP auf ' + v + ' W gesetzt. In MyWhoosh auch eintragen.'); }); }
     else if (a === 'zip-all') saveZip('MyWhoosh_Alle_Workouts.zip', Object.keys(DATA.workouts).sort());

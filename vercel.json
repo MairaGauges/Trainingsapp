@@ -6,14 +6,22 @@
   "outputDirectory": "web",
   "functions": {
     "api/garmin.py": {
-      "includeFiles": "server/garmin_client.py",
+      "includeFiles": "server/*.py",
       "maxDuration": 60
+    },
+    "api/intervals.py": {
+      "includeFiles": "server/*.py",
+      "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/api/garmin/:path*",
       "destination": "/api/garmin?p=:path*"
+    },
+    {
+      "source": "/api/intervals/:path*",
+      "destination": "/api/intervals?p=:path*"
     }
   ],
   "headers": [

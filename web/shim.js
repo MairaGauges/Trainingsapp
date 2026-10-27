@@ -261,14 +261,16 @@
     location.reload();
   };
 
-  // Garmin-Abruf nur anzeigen, wenn der Server einen Schlüssel kennt
+  // Garmin-Abruf und „An MyWhoosh senden“ (intervals.icu) nur anzeigen, wenn der Server einen Schlüssel kennt
   window.GARMIN_SYNC = false;
-  ready.then(() => window.apiFetch('api/garmin/status', { cache: 'no-store' })
-    .then(r => r.ok ? r.json() : {})
-    .then(j => {
-      window.GARMIN_SYNC = !!j.configured;
-      if (window.GARMIN_SYNC && typeof window.render === 'function') window.render();
-    }).catch(() => {}));
+  window.INTERVALS_SYNC = false;
+  [['garmin', 'GARMIN_SYNC'], ['intervals', 'INTERVALS_SYNC']].forEach(([svc, flag]) =>
+    ready.then(() => window.apiFetch('api/' + svc + '/status', { cache: 'no-store' }))
+      .then(r => r.ok ? r.json() : {})
+      .then(j => {
+        window[flag] = !!j.configured;
+        if (window[flag] && typeof window.render === 'function') window.render();
+      }).catch(() => {}));
 
   if ('serviceWorker' in navigator && window.isSecureContext) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

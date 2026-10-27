@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from garmin_client import Garmin, GarminError  # noqa: E402
+import intervals_client as icu  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 WEB = os.path.join(ROOT, "web")
@@ -165,9 +166,28 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, garmin.file(m.group(1)), "application/zip")
             except GarminError as e:
                 return self._json(502, {"error": str(e)})
+        if p == "/api/intervals/status":
+            return self._json(200, {"configured": icu.configured()})
         if p.startswith("/api/"):
             return self._json(404, {"error": "unbekannt"})
         return self._static(p)
+
+    def do_POST(self):
+        if not self._guard():
+            return
+        if urllib.parse.urlsplit(self.path).path != "/api/intervals/events":
+            return self._json(404, {"error": "unbekannt"})
+        raw = self._body()
+        if raw is None:
+            return self._json(413, {"error": "zu groß"})
+        try:
+            events = icu.clean(json.loads(raw or b"null"))
+        except (ValueError, icu.IntervalsError) as e:
+            return self._json(400, {"error": str(e) if isinstance(e, icu.IntervalsError) else "kein JSON"})
+        try:
+            return self._json(200, {"count": icu.push(events)})
+        except icu.IntervalsError as e:
+            return self._json(502, {"error": str(e)})
 
     def do_PUT(self):
         if not self._guard():

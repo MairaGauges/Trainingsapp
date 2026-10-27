@@ -7,32 +7,14 @@ import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.parse
-import urllib.request
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server"))
 from garmin_client import Garmin, GarminError  # noqa: E402
-
-SUPABASE_URL = (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or "").rstrip("/")
-SUPABASE_KEY = (os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-                or os.environ.get("SUPABASE_PUBLISHABLE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") or "")
-ALLOWED = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
+from sb_auth import check  # noqa: E402
 
 garmin = Garmin("/nonexistent")  # Schlüssel nur aus der Umgebung
-
-
-def user_email(auth_header):
-    """Prüft das Supabase-Token beim Auth-Server und liefert die E-Mail oder None."""
-    if not (auth_header.startswith("Bearer ") and SUPABASE_URL and SUPABASE_KEY):
-        return None
-    req = urllib.request.Request(SUPABASE_URL + "/auth/v1/user", headers={"apikey": SUPABASE_KEY, "Authorization": auth_header})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return (json.loads(r.read()).get("email") or "").lower() or None
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-        return None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -56,10 +38,9 @@ class handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(url.query)
         # Pfad nach /api/garmin/ – direkt oder über die Rewrite-Regel (?p=...)
         p = (q.get("p") or [re.sub(r"^/api/garmin/?", "", url.path)])[0].strip("/")
-        if not ALLOWED:
-            return self._json(503, {"error": "ALLOWED_EMAILS ist in Vercel nicht gesetzt"})
-        if user_email(self.headers.get("Authorization", "")) not in ALLOWED:
-            return self._json(401, {"error": "Anmeldung erforderlich"})
+        err = check(self.headers.get("Authorization", ""))
+        if err:
+            return self._json(err[0], {"error": err[1]})
         if p == "status":
             return self._json(200, {"configured": garmin.configured()})
         if p == "diag":
