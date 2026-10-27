@@ -1,0 +1,110 @@
+{
+ "version": 1,
+ "data": {
+  "strength": {
+   "plan": {
+    "sample": true,
+    "sessions": [
+     {
+      "id": "s1",
+      "name": "Kraft 1 · Beine einbeinig",
+      "day": 2,
+      "exercises": [
+       {
+        "id": "e11",
+        "name": "Bulgarian Split Squat",
+        "sets": 3,
+        "reps": "8–10 je Seite"
+       },
+       {
+        "id": "e12",
+        "name": "Einbeiniger Beinstrecker",
+        "sets": 3,
+        "reps": "10–12 je Seite"
+       },
+       {
+        "id": "e13",
+        "name": "Single-Leg RDL",
+        "sets": 3,
+        "reps": "8–10 je Seite"
+       },
+       {
+        "id": "e14",
+        "name": "Einbeiniger Beinbeuger",
+        "sets": 3,
+        "reps": "8–12 je Seite"
+       },
+       {
+        "id": "e15",
+        "name": "Wadenheber einbeinig",
+        "sets": 3,
+        "reps": "12–15 je Seite"
+       },
+       {
+        "id": "e16",
+        "name": "Seitstütz mit Beinheben",
+        "sets": 3,
+        "reps": "10–12 je Seite"
+       },
+       {
+        "id": "e17",
+        "name": "Copenhagen Plank",
+        "sets": 3,
+        "reps": "20–30 s je Seite"
+       }
+      ]
+     },
+     {
+      "id": "s2",
+      "name": "Kraft 2 · Beine Schwer, Rumpf, Oberkörper",
+      "day": 6,
+      "exercises": [
+       {
+        "id": "e21",
+        "name": "Einbeiniger Hip Thrust",
+        "sets": 3,
+        "reps": "8–10 je Seite"
+       },
+       {
+        "id": "e22",
+        "name": "Front Squat oder Goblet Squat",
+        "sets": 3,
+        "reps": "8"
+       },
+       {
+        "id": "e23",
+        "name": "Klimmzüge oder Latzug",
+        "sets": 3,
+        "reps": "6–10"
+       },
+       {
+        "id": "e24",
+        "name": "Bankdrücken oder Liegestütz",
+        "sets": 3,
+        "reps": "8–10"
+       },
+       {
+        "id": "e25",
+        "name": "Kabelrudern",
+        "sets": 3,
+        "reps": "10–12"
+       },
+       {
+        "id": "e26",
+        "name": "Pallof Press",
+        "sets": 3,
+        "reps": "10 je Seite"
+       },
+       {
+        "id": "e27",
+        "name": "Dead Bug",
+        "sets": 3,
+        "reps": "8–10 je Seite"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

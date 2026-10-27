@@ -1,0 +1,9 @@
+services:
+  trainer:
+    build: .
+    restart: unless-stopped
+    env_file: .env          # APP_PASSWORD (Pflicht), GARMIN_PERSONAL_API_KEY
+    ports:
+      - "127.0.0.1:8080:8080"   # nur lokal; für das Handy über Tailscale/Reverse-Proxy mit HTTPS freigeben
+    volumes:
+      - ./data:/data

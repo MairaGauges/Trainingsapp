@@ -1,0 +1,11 @@
+data/*
+!data/.gitkeep
+dist/
+web/index.html
+tests/testfiles/
+tests/.tmp/
+__pycache__/
+*.pyc
+.env
+garmin_key
+.claude/settings.local.json
