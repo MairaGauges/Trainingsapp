@@ -61,14 +61,15 @@ def push(events):
     body = json.dumps(clean(events)).encode("utf-8")
     auth = base64.b64encode(("API_KEY:" + k).encode()).decode()
     req = urllib.request.Request(BASE + "/api/v1/athlete/0/events/bulk?upsert=true", data=body, method="POST",
-                                 headers={"Authorization": "Basic " + auth, "Content-Type": "application/json", "Accept": "application/json"})
+                                 headers={"Authorization": "Basic " + auth, "Content-Type": "application/json", "Accept": "application/json",
+                                          "User-Agent": "ef27-trainer/1.0"})  # Cloudflare sperrt Python-urllib (Fehler 1010)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             res = json.loads(r.read() or b"[]")
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            raise IntervalsError("intervals.icu lehnt den Schlüssel ab (HTTP %d)" % e.code)
         hint = e.read()[:160].decode("utf-8", "replace").replace(k, "***").strip()
+        if e.code == 401:
+            raise IntervalsError("intervals.icu lehnt den Schlüssel ab (HTTP 401)")
         raise IntervalsError("intervals.icu antwortet mit HTTP %d%s" % (e.code, ": " + hint if hint else ""))
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise IntervalsError("intervals.icu nicht erreichbar: %s" % getattr(e, "reason", e))
