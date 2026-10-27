@@ -16,7 +16,9 @@ import urllib.request
 
 
 def call(url, key, body, token=None, prefer=None):
-    h = {"apikey": key, "Content-Type": "application/json", "Authorization": "Bearer " + (token or key)}
+    h = {"apikey": key, "Content-Type": "application/json"}
+    if token:  # neue sb_publishable_-Schlüssel sind kein JWT und gehören nicht in Authorization
+        h["Authorization"] = "Bearer " + token
     if prefer:
         h["Prefer"] = prefer
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=h, method="POST")
