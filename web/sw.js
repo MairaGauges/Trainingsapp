@@ -1,6 +1,6 @@
 /* Service Worker: App-Gerüst offline verfügbar machen. Die API (/api/) wird nie gecacht. */
-const CACHE = 'ef27-shell-v2';
-const SHELL = ['./', 'shim.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'ef27-shell-v3';
+const SHELL = ['./', 'config.js', 'shim.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

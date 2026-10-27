@@ -9,3 +9,5 @@ __pycache__/
 .env
 garmin_key
 .claude/settings.local.json
+web/config.js
+.vercel

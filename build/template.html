@@ -785,19 +785,20 @@ function parseAny(name, u8) {
   if (ext === 'gpx') return readGpx(text);
   throw new Error('Dateityp nicht unterstützt');
 }
-/* Garmin-Direktabruf (nur mit eigenem Server, siehe server/server.py) */
+/* Garmin-Direktabruf (nur mit eigenem Server oder Vercel, siehe server/server.py und api/garmin.py) */
 async function garminSync() {
   if (busy) return;
   try {
     toast('Hole Aktivitäten von Garmin …');
-    const r = await fetch('api/garmin/activities?days=14', { credentials: 'same-origin' });
+    const get = window.apiFetch || ((u, o) => fetch(u, Object.assign({ credentials: 'same-origin' }, o)));
+    const r = await get('api/garmin/activities?days=14');
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
     const list = j.activities || [];
     if (!list.length) { toast('Keine Aktivitäten in den letzten 14 Tagen.'); return; }
     const files = [], failed = [];
     for (const a of list) {
-      const fr = await fetch('api/garmin/file/' + encodeURIComponent(a.id), { credentials: 'same-origin' });
+      const fr = await get('api/garmin/file/' + encodeURIComponent(a.id));
       if (!fr.ok) { failed.push(a.id); continue; }
       files.push(new File([await fr.arrayBuffer()], 'garmin-' + a.id + '.zip'));
     }
@@ -1123,7 +1124,8 @@ function renderGarmin() {
       </div>
     </div>
     <div class="card"><div class="card-h"><h3>Aktivitäten</h3><span class="muted tab">${list.length} gespeichert</span></div>${table}</div>
-    ${detail}`;
+    ${detail}
+    ${window.EF27_CONFIG && window.ef27Logout ? `<p class="note" style="text-align:center"><button class="btn ghost sm" data-action="logout">Abmelden</button></p>` : ''}`;
   if (cur) bindDetail(cur);
 }
 
@@ -1825,6 +1827,7 @@ document.addEventListener('click', ev => {
     }
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
+    else if (a === 'logout') window.ef27Logout();
     else if (a === 'ftp-take') { const v = Number(act.dataset.v); if (v >= 80 && v <= 500) storeFtp(v).then(() => { render(); toast('FTP auf ' + v + ' W gesetzt. In MyWhoosh auch eintragen.'); }); }
     else if (a === 'zip-all') saveZip('MyWhoosh_Alle_Workouts.zip', Object.keys(DATA.workouts).sort());
     else if (a === 'stabi-create' && Store.splan && !planSession('s3')) {

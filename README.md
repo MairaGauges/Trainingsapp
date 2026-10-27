@@ -3,7 +3,7 @@
 Persönliche Trainings-App für den Radmarathon am 1.5.2027 (92 km, ca. 1.300 hm):
 Wochenplan (Rolle B fest, Rolle A jede Woche optional), MyWhoosh-Workouts (.zwo), jede Einheit zum Abhaken,
 Kraft- und Stabiplan (Stabi-Block nach Rolle B) mit Gewichten bzw. Zeiten, Garmin-Auswertung und Trainingsfortschritt (Fitness, Form, Leistung, Grundlagenausdauer).
-Läuft auf dem eigenen Rechner oder Raspberry Pi, installierbar als App auf dem Handy (PWA).
+Läuft auf Vercel mit Supabase als Speicher, alternativ auf dem eigenen Rechner oder Raspberry Pi; installierbar als App auf dem Handy (PWA).
 
 ## Was drin ist
 
@@ -14,11 +14,35 @@ Läuft auf dem eigenen Rechner oder Raspberry Pi, installierbar als App auf dem 
 | `build/build_plan.py` | erzeugt den Plan als PDF (braucht `reportlab`) |
 | `build/build_dash.py`, `build/template.html` | bauen die App `web/index.html` und die Artifact-Variante `dist/artifact.html` |
 | `server/server.py` | kleiner Server (nur Standardbibliothek): App ausliefern, Daten speichern, Garmin abfragen |
+| `server/garmin_client.py` | Garmin-Abruf, genutzt vom Server und von der Vercel-Funktion |
+| `api/garmin.py`, `vercel.json` | Vercel: Build, Auslieferung von `web/`, Garmin-Funktion |
+| `supabase/schema.sql` | Tabelle `docs` mit Zeilenschutz (einmal im SQL Editor ausführen) |
+| `tools/import_supabase.py` | vorhandene Daten (`store.json`-Format) nach Supabase übernehmen |
 | `web/` | `shim.js` (Speicher mit Offline-Warteschlange), `sw.js`, Manifest, Icons |
 | `seed/store.example.json` | Beispiel-Kraftplan (einbeinig, Knie-Stabilität) |
 | `tests/test_all.py` | Ende-zu-Ende-Test mit simulierter Garmin-Schnittstelle |
 
-## Schnellstart
+## Vercel + Supabase
+
+Die App ist eine statische Seite. Mit Supabase-Variablen speichert `web/shim.js` direkt in Supabase
+(Anmeldung mit E-Mail und Passwort), ohne Variablen beim eigenen Server. Einrichtung einmalig:
+
+1. **Supabase, Tabelle:** SQL Editor → `supabase/schema.sql` einfügen → Run.
+2. **Supabase, Konto:** Authentication → Users → „Add user“ (E-Mail, Passwort, „Auto Confirm“).
+   Danach unter Authentication → Sign In / Providers **„Allow new users to sign up“ ausschalten**,
+   damit sich niemand sonst ein Konto anlegt.
+3. **Vercel:** Projekt aus dem GitHub-Repo importieren (Framework „Other“, alles Weitere steht in `vercel.json`).
+   Umgebungsvariablen (Settings → Environment Variables), danach neu deployen:
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY` – setzt die Supabase-Integration von Vercel automatisch
+     (`NEXT_PUBLIC_…`-Namen und der neue „publishable key“ gehen auch). **Nie** den `service_role`-Schlüssel nehmen.
+   - `ALLOWED_EMAILS` – deine E-Mail; nur diese Konten dürfen Garmin abrufen.
+   - optional `GARMIN_PERSONAL_API_KEY` – dann erscheint „Von Garmin laden“.
+4. **Daten übernehmen** (optional): `SUPABASE_URL=… SUPABASE_ANON_KEY=… python3 tools/import_supabase.py data/store.json du@example.com`
+
+Jedes Gerät meldet sich einmal an; die Sitzung bleibt gespeichert. „Abmelden“ steht unten im Tab Garmin
+und löscht auch den Zwischenspeicher auf dem Gerät. Offline geht weiter wie oben beschrieben.
+
+## Schnellstart (eigener Rechner)
 
 ```bash
 make build        # Workouts + App bauen (nur Python 3, keine Pakete nötig)

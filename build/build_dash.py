@@ -124,8 +124,17 @@ app = ('<!doctype html><html lang="de"><head><meta charset="utf-8">'
        '<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png">'
        '<link rel="icon" href="icons/icon-192.png">'
        '<style>html{-webkit-text-size-adjust:100%}body{margin:0;font:14px system-ui}[hidden]{display:none!important}img{max-width:100%}</style>'
-       '<script src="shim.js"></script></head><body>' + page + "</body></html>")
+       '<script src="config.js"></script><script src="shim.js"></script></head><body>' + page + "</body></html>")
 open(os.path.join(WEB, "index.html"), "w", encoding="utf-8").write(app)
+
+# 3) Speicher-Konfiguration: mit Supabase-Variablen (Vercel) speichert die App in Supabase, sonst beim eigenen Server.
+#    Nur URL und öffentlicher Schlüssel (anon/publishable) – nie den service_role-Schlüssel.
+env = lambda *ks: next((os.environ[k].strip() for k in ks if os.environ.get(k, "").strip()), "")
+sb_url = env("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL")
+sb_key = env("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+cfg = dict(supabaseUrl=sb_url, supabaseKey=sb_key) if sb_url and sb_key else None
+open(os.path.join(WEB, "config.js"), "w", encoding="utf-8").write("window.EF27_CONFIG = %s;\n" % json.dumps(cfg))
+print("Speicher:", "Supabase " + sb_url if cfg else "eigener Server")
 print("web/index.html:", len(app.encode()), "Bytes, Workouts:", len(workouts))
 for w in weeks:
     miss = [i for i, s in enumerate(w["sessions"]) if s["type"] in ("A", "B") and not s.get("file") and not (w["n"] == 23 and i == 5)]
