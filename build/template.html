@@ -988,8 +988,10 @@ function renderWeek() {
         <div class="card-h"><h3>Workouts für MyWhoosh</h3></div>
         <button class="btn" style="width:100%" data-action="zip-week"${DL && files.length ? '' : ' disabled'}>${w.kind === 'taper' ? 'Taper' : 'Woche ' + w.n} als ZIP laden · ${files.length} ${files.length === 1 ? 'Datei' : 'Dateien'}</button>
         ${window.INTERVALS_SYNC ? (() => {
-          const open = files.filter(({ i }) => !pushSig(w, i).past && pushState(w, i) !== 'sent');
-          return `<button class="btn" style="width:100%;margin-top:8px" data-action="push-week"${pushing || !open.length ? ' disabled' : ''}>${pushing ? 'Wird gesendet …' : open.length ? open.length + ' ' + (open.length === 1 ? 'Workout' : 'Workouts') + ' an MyWhoosh senden' : 'Alles an MyWhoosh gesendet'}</button>
+          const open = files.filter(({ i }) => !pushSig(w, i).past && pushState(w, i) !== 'sent'), stale = stalePushes(w).length;
+          const lbl = pushing ? 'Wird gesendet …' : open.length ? open.length + ' ' + (open.length === 1 ? 'Workout' : 'Workouts') + ' an MyWhoosh senden' : stale ? 'Veraltete Termine entfernen' : 'Alles an MyWhoosh gesendet';
+          return `<button class="btn" style="width:100%;margin-top:8px" data-action="push-week"${pushing || !(open.length || stale) ? ' disabled' : ''}>${lbl}</button>
+            ${stale ? `<p class="note">${stale === 1 ? 'Ein früher gesendeter Termin passt nicht mehr zum Plan und wird' : stale + ' früher gesendete Termine passen nicht mehr zum Plan und werden'} dabei aus intervals.icu entfernt.</p>` : ''}
             <p class="note">Geht über intervals.icu. MyWhoosh übernimmt nur Termine der nächsten 7 Tage; Kadenz-Vorgaben kommen dabei eventuell nicht mit.
               <button class="btn ghost sm" data-action="push-test"${pushing ? ' disabled' : ''}>Verbindung testen · 20 min für heute</button></p>`;
         })() : ''}
@@ -1217,12 +1219,13 @@ function spinZones(a, hrMax) {
   return { hi: hi / 60, thr: thr / 60, by };
 }
 const adaptCache = {};
+const idxA = w => w.sessions.findIndex(s => s.type === 'A');   // Rolle A (Montag; per Verschieben auch später)
 function adaptA(w) {
-  const s = w.sessions[4];
-  if (!s || s.type !== 'A' || !s.file) return s;
-  const dA = dayOfSess(w, 4);
+  const iA = idxA(w), s = w.sessions[iA];
+  if (!s || !s.file) return s;
+  const dA = dayOfSess(w, iA);
   if (dA <= 1) return s;   // vor oder am Spinning-Tag: nichts anzupassen
-  const other = new Set(w.sessions.map((x, k) => k).filter(k => k !== 4 && canMove(w.sessions[k])).flatMap(k => garminDone(w, w.sessions[k], k).map(a => a.id)));
+  const other = new Set(w.sessions.map((x, k) => k).filter(k => k !== iA && canMove(w.sessions[k])).flatMap(k => garminDone(w, w.sessions[k], k).map(a => a.id)));
   const rides = Store.acts.filter(a => a.sport === 'rad' && actWeek(a) === w.n - 1 && !other.has(a.id)
     && daysBetween(w.startD, new Date(a.start * 1000)) < Math.min(dA, 4));
   const hrMax = hrMaxSeen() || Math.max(0, ...rides.map(a => a.maxHr || 0));
@@ -1231,7 +1234,7 @@ function adaptA(w) {
   return (adaptCache[key] = computeAdapt(w, s, rides, hrMax));
 }
 function computeAdapt(w, s, rides, hrMax) {
-  const dA = dayOfSess(w, 4), fri = addDays(w.startD, dA), ds = fri.getDate() + '.' + (fri.getMonth() + 1) + '.';
+  const dA = dayOfSess(w, idxA(w)), fri = addDays(w.startD, dA), ds = fri.getDate() + '.' + (fri.getMonth() + 1) + '.';
   if (!rides.length) {
     const tue = addDays(w.startD, 1);
     if (daysBetween(TODAY, tue) >= 0 || w.kind === 'deload') return s;
@@ -1306,7 +1309,7 @@ function shortenA(file) {
   const min = Math.round(steps.reduce((t, x) => t + x.dur, 0) / 60);
   return { slug: 'gekuerzt', title, steps, desc: `Gekürzte Fassung von „${woTitle(file)}“ (${min} min), weil das Spinning schon viel Schwellenarbeit hatte.` };
 }
-const sessOf = (w, i) => i === 4 ? adaptA(w) : w.sessions[i];
+const sessOf = (w, i) => w.sessions[i] && w.sessions[i].type === 'A' ? adaptA(w) : w.sessions[i];
 const sessionsOf = w => w.sessions.map((s, i) => sessOf(w, i));
 
 function formLabel(f) {
@@ -1661,7 +1664,7 @@ function dayOfSess(w, i) {
 }
 const sessOnDay = (w, d) => w.sessions.map((s, i) => i).filter(i => w.sessions[i].type !== 'frei' && dayOfSess(w, i) === d);
 const freeOnDay = (w, d) => w.sessions[d] && w.sessions[d].type === 'frei' ? d : null;
-const isHard = (w, k) => { const s = w.sessions[k]; return s.type === 'spin' && w.kind !== 'taper' || (s.type === 'A' && s.tag === 'hart') || (s.type === 'kraft' && k === 2) || s.type === 'race'; };
+const isHard = (w, k) => { const s = w.sessions[k]; return s.type === 'spin' && w.kind !== 'taper' || (s.type === 'A' && (s.tag === 'hart' || s.tag === 'Test')) || (s.type === 'kraft' && k === 2) || s.type === 'race'; };
 function moveWarning(w, i, d) {
   if (d === i) return '';
   const s = w.sessions[i], same = sessOnDay(w, d).filter(k => k !== i);
@@ -1683,6 +1686,11 @@ function pushSig(w, i) {
   const s = sessOf(w, i), date = addDays(w.startD, dayOfSess(w, i));
   return { file: s.file, date: dkey(date), past: daysBetween(TODAY, date) < 0 };
 }
+// Gesendete Termine dieser Woche, deren Einheit es nicht mehr gibt (z. B. nach einer Planänderung)
+const stalePushes = w => Object.keys(Store.pushes).filter(k => {
+  const m = /^w(\d\d)_d(\d)$/.exec(k);
+  return m && Number(m[1]) === w.n && !(sessOf(w, Number(m[2])) || {}).file;
+});
 function pushState(w, i) {
   const p = Store.pushes[dayKey(w.n, i)];
   if (!p) return null;
@@ -1691,9 +1699,17 @@ function pushState(w, i) {
 }
 let pushing = false;
 async function pushWorkouts(w, idxs) {
-  if (pushing || !idxs.length) return;
+  const stale = stalePushes(w);
+  if (pushing || !(idxs.length || stale.length)) return;
   pushing = true; renderWeek();
   try {
+    if (stale.length) {
+      const r = await window.apiFetch('api/intervals/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stale.map(k => 'ef27-' + k)) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      stale.forEach(k => { delete Store.pushes[k]; if (Store.db) enqueue(() => Store.db.collection('pushes').doc(k).delete()); });
+      if (!idxs.length) { toast('Veraltete Termine aus intervals.icu entfernt.'); return; }
+    }
     const events = idxs.map(i => {
       const s = sessOf(w, i), g = pushSig(w, i);
       return { start_date_local: g.date + 'T00:00:00', filename: s.file.replace(/[^A-Za-z0-9_.-]/g, '_'), file_contents: woXml(s.file),
@@ -1710,7 +1726,7 @@ async function pushWorkouts(w, idxs) {
     });
     toast(idxs.length === 1 ? 'An intervals.icu gesendet. MyWhoosh holt es von dort.' : idxs.length + ' Workouts an intervals.icu gesendet. MyWhoosh holt sie von dort.');
   } catch (e) { toast('MyWhoosh: ' + ((e && e.message) || e)); }
-  pushing = false; renderWeek();
+  finally { pushing = false; renderWeek(); }
 }
 // Verbindungstest: 20 min locker für heute, mit Kadenz-Vorgaben, um zu sehen, was in MyWhoosh ankommt
 async function pushTest() {

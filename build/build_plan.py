@@ -63,18 +63,18 @@ story.append(P("Radmarathon-Jedermann 92 km, ca. 1300 hm · Rennen am 1. Mai 202
 story.append(P("Wochenstruktur", h2))
 week = [[P(x, hdr) for x in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]],
         [P(x, small) for x in [
-            "frei / 15 min Mobility", "Spinning (Intervalle, 1 h)",
+            "Rolle <b>A</b> (Z2, optional)", "Spinning (Intervalle, 1 h)",
             "Kraft 1 (Beine, Ganzkörper)", "Schwimmen",
-            "Rolle <b>A</b> (Schwelle / Sweet Spot)",
+            "frei / 15 min Mobility",
             "Rolle <b>B</b> (lang, Z2 mit Tempoblöcken), danach 15 min Stabi",
             "Kraft 2 (Oberkörper, Rumpf)"]]]
 story.append(tbl(week, [3.8*cm]*7))
 story.append(Spacer(1, 6))
 story.append(P("<b>Rhythmus:</b> Plan-Start ist Montag 2.11.2026, das Rennen am 1.5.2027 "
                "fällt in Woche 26. <b>Jede Woche</b> fährst du Spinning + Einheit <b>B</b> (Samstag). "
-               "Einheit <b>A</b> (Freitag) ist <b>optional</b>: fahr sie, wenn du dich frisch fühlst. "
+               "Einheit <b>A</b> (Montag, Z2) ist <b>optional</b>: fahr sie, wenn du dich frisch fühlst. "
                "Die Wochen 4, 8, 12, 16, 20 und 24 sind Entlastungswochen (B verkürzt, A nur "
-               "45 min locker mit kurzen Öffnern).", body))
+               "45 min ganz locker).", body))
 
 story.append(P("Zonen und Pausen", h2))
 zones = [[P(x, hdr) for x in ["Zone", "% FTP", "Watt (FTP 193 W)"]],
@@ -92,7 +92,7 @@ story.append(P("<b>Pausen:</b> Alle Pausen sind aktive Pausen, also weiterkurbel
                "sondern das Ziel-Watt im Workout auf die Pausenleistung stellen. "
                "<b>Einfahren</b> immer 15 min (steigernd von 100 auf 145 W), "
                "<b>Ausfahren</b> 10 min @ 100–110 W.", body))
-story.append(P("<b>FTP-Tests</b> in W7, W13 und W19 (Freitag). Danach alle Wattwerte neu "
+story.append(P("<b>FTP-Tests</b> in W7, W13 und W19 (Montag). Danach alle Wattwerte neu "
                "berechnen: Sweet Spot 88–94 %, Schwelle 95–105 %, VO2max 106–120 %, "
                "Z2 56–75 %.", body))
 story.append(P("<b>Legende:</b> grün = Entlastungswoche (kürzer, A nur locker), "

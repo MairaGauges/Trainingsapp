@@ -108,28 +108,28 @@ def add(wk, day, sess, slug, title, desc, steps, total_min=None, date_off=0):
     catalog.append((wk_lbl, day, ds, fname, round(tot, 1), title))
 
 
-def A(wk, n, on_m, w, off_m, off_w=110):
-    steps = [wu(15)] + reps(n, on_m * 60, w, off_m * 60, off_w) + [cd(10)]
-    add(wk, "Fr", "A", f"{n}x{on_m}min_{w}W", f"{n}x{on_m}' @ {w} W, Pause {off_m}' @ {off_w} W",
-        f"15' Einfahren, {n}x{on_m}' @ {w} W, Pause {off_m}' @ {off_w} W, 10' Ausfahren. FTP im Profil auf {FTP} W.",
-        steps, date_off=4)
+def A(wk, m):
+    """Optionale A-Einheit am Montag: Z2 durchgehend (vor dem Spinning am Dienstag, daher keine Intervalle)."""
+    add(wk, "Mo", "A", f"{m}min_Z2", f"{m} min Z2",
+        f"Optional. 10' Einfahren, {m - 15}' Z2 um {Z2} W (115-140 W), 5' Ausfahren. Ruhig rollen, am Dienstag ist Spinning.",
+        [wu(10), FILL, cd(5, 120, 100)], m)
 
 
-def AL(wk, w):
-    """Lockere optionale A-Einheit in Entlastungswochen: 45 min Z2 mit kurzen Öffnern."""
-    add(wk, "Fr", "A", f"45min_3x2min_{w}W", f"45 min locker, 3x2' @ {w} W",
-        f"Entlastungswoche, optional. 10' Einfahren, Z2, 3x2' @ {w} W, Pause 3' @ 110 W, 5' Ausfahren.",
-        [wu(10), FILL] + reps(3, 120, w, 180, 110) + [cd(5)], 45, date_off=4)
+def AL(wk):
+    """Entlastungswoche: 45 min ganz locker."""
+    add(wk, "Mo", "A", "45min_locker", "45 min locker",
+        "Entlastungswoche, optional. 45 min ganz locker, Z1-Z2 (100-130 W).",
+        [wu(10, 100, 120), st(30 * 60, 115, None, "Ganz locker"), cd(5, 110, 100)], 45)
 
 
 def TEST(wk):
     steps = [wu(15), st(60, 200, None, "Aktivierung 1/3: 200 W"), st(60, 110), st(60, 200, None, "Aktivierung 2/3: 200 W"),
              st(60, 110), st(60, 200, None, "Aktivierung 3/3: 200 W"), st(300, 110, None, "5 min locker vor dem Test"),
              ("free", 1200, "20-min-Test: gleichmaessig so hart wie moeglich. FTP = 95 % vom Schnitt"), cd(10)]
-    add(wk, "Fr", "A", "FTP-Test", "FTP-Test (20 min)",
+    add(wk, "Mo", "A", "FTP-Test", "FTP-Test (20 min)",
         "15' Einfahren, 3x1' @ 200 W mit 1' Pause @ 110 W, 5' locker @ 110 W, 20-min-Test ohne ERG, 10' Ausfahren. "
         "FTP = 95 % des 20-min-Schnitts. Alternativ den Ramp-Test in MyWhoosh nutzen.",
-        steps, date_off=4)
+        steps)
 
 
 def B(wk, title, slug, desc, steps, total):
@@ -137,7 +137,8 @@ def B(wk, title, slug, desc, steps, total):
 
 
 # -------- Phase 1 (W1-6)
-A(1, 2, 10, 170, 5); A(3, 2, 12, 172, 5); A(5, 3, 10, 174, 4)
+for wk in (1, 2, 3, 5, 6):
+    A(wk, 60)
 B(1, "60 min Z2", "60min_Z2", "60 min Z2, ca. 125 W.", [wu(10), FILL], 60)
 B(2, "75 min Z2", "75min_Z2", "75 min Z2, ca. 125 W.", [wu(10), FILL], 75)
 B(3, "80 min Z2", "80min_Z2", "80 min Z2, ca. 125 W.", [wu(10), FILL], 80)
@@ -154,12 +155,12 @@ B(7, "90 min Z2, 3x5' @ 154 W", "90min_3x5min_154W", "10' Einfahren, 20' Z2, 3x5
   [wu(10), z2(20)] + reps(3, 300, 154, 300, 120) + [FILL], 90)
 B(8, "70 min, 2x10' @ 170 W", "70min_2x10min_170W", "Entlastungswoche. 10' Einfahren, 2x10' @ 170 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(10)] + reps(2, 600, 170, 300, 120) + [FILL], 70)
-A(9, 3, 12, 174, 4)
+for wk in (9, 10, 11):
+    A(wk, 70)
 B(9, "90 min Z2, 3x5' @ 154 W", "90min_3x5min_154W", "10' Einfahren, 20' Z2, 3x5' @ 154 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(10), z2(20)] + reps(3, 300, 154, 300, 120) + [FILL], 90)
 B(10, "90 min, 2x15' @ 159 W", "90min_2x15min_159W", "15' Einfahren, 2x15' @ 159 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(15)] + reps(2, 900, 159, 300, 120) + [FILL], 90)
-A(11, 2, 20, 178, 5)
 B(11, "90 min Z2, 3x6' @ 157 W", "90min_3x6min_157W", "10' Einfahren, 20' Z2, 3x6' @ 157 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(10), z2(20)] + reps(3, 360, 157, 300, 120) + [FILL], 90)
 B(12, "75 min, 2x12' @ 174 W", "75min_2x12min_174W", "Entlastungswoche. 10' Einfahren, 2x12' @ 174 W, Pause 5' @ 120 W, Rest Z2.",
@@ -174,23 +175,13 @@ B(14, "90 min, 2x20' @ 160 W", "90min_2x20min_160W", "15' Einfahren, 2x20' @ 160
   [wu(15)] + reps(2, 1200, 160, 300, 120) + [FILL], 90)
 
 
-def OU(wk):
-    one = []
-    for i in range(3):
-        one += [st(120, 183, None, f"Unter {i+1}/3: 183 W"), st(120, 203, None, f"Ueber {i+1}/3: 203 W")]
-    steps = [wu(15)] + one + [st(300, 110, None, "Pause 5 min locker, 110 W")] + one + [cd(10)]
-    add(wk, "Fr", "A", "OverUnders", "Over-Unders 2x(3x(2' 183 W / 2' 203 W))",
-        "15' Einfahren, 2 Saetze mit je 3x(2' @ 183 W / 2' @ 203 W), Pause 5' @ 110 W zwischen den Saetzen, 10' Ausfahren.",
-        steps, date_off=4)
-
-
-OU(15)
+for wk in (14, 15, 17, 18, 21, 22, 23):
+    A(wk, 75)
 B(15, "90 min, 3x10' @ 180 W, 65 U/min", "90min_3x10min_180W_Kraft",
   "15' Einfahren, 3x10' @ 180 W bei 65 U/min, Pause 5' @ 120 W bei 90 U/min, Rest Z2.",
   [wu(15)] + reps(3, 600, 180, 300, 120, 65, 90) + [FILL], 90)
 B(16, "75 min, 2x10' @ 188 W", "75min_2x10min_188W", "Entlastungswoche. 10' Einfahren, 2x10' @ 188 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(10)] + reps(2, 600, 188, 300, 120) + [FILL], 75)
-A(17, 5, 3, 222, 3)
 B(17, "90 min, 4x10' @ 183 W, Kadenzwechsel", "90min_4x10min_183W_Kadenz",
   "15' Einfahren, 4x10' @ 183 W, Kadenz im Wechsel 65/90/65/90 U/min, Pause 4' @ 120 W, Rest Z2.",
   [wu(15)] + reps(4, 600, 183, 240, 120, [65, 90, 65, 90], None) + [FILL], 90)
@@ -203,29 +194,19 @@ B(20, "75 min, 2x10' @ 190 W", "75min_2x10min_190W", "Entlastungswoche. 10' Einf
   [wu(10)] + reps(2, 600, 190, 300, 120) + [FILL], 75)
 
 # -------- Phase 4 (W21-25)
-A(21, 3, 12, 190, 5)
 B(21, "2 h Z2, 3x10' @ 174 W am Ende", "120min_3x10min_174W",
   "10' Einfahren, lange Z2-Phase, im letzten Drittel 3x10' @ 174 W, Pause 5' @ 120 W, 5' Ausfahren. Ausnahme-Einheit (2 h).",
   [wu(10), FILL] + reps(3, 600, 174, 300, 120) + [cd(5)], 120)
 B(22, "2 h Z2, 3x12' @ 183 W", "120min_3x12min_183W",
   "10' Einfahren, 20' Z2, 3x12' @ 183 W, Pause 5' @ 120 W, Rest Z2. Ausnahme-Einheit (2 h), besser draussen.",
   [wu(10), z2(20)] + reps(3, 720, 183, 300, 120) + [FILL], 120)
-steps = [wu(15)]
-for i in range(4):
-    steps += [st(330, 197, None, f"Block {i+1}/4: 197 W"), st(30, 250, None, "ANTRITT 250 W")]
-    if i < 3:
-        steps.append(st(240, 110, None, "Pause 4 min locker, 110 W"))
-steps.append(cd(10))
-add(23, "Fr", "A", "4x6min_197W_Antritt", "4x6' @ 197 W + 30'' Antritt, Pause 4' @ 110 W",
-    "15' Einfahren, 4x(5'30'' @ 197 W + 30'' @ 250 W), Pause 4' @ 110 W, 10' Ausfahren.", steps, date_off=4)
 B(24, "75 min, 3x5' @ 193 W", "75min_3x5min_193W", "Entlastungswoche. 10' Einfahren, 3x5' @ 193 W, Pause 4' @ 120 W, Rest Z2.",
   [wu(10)] + reps(3, 300, 193, 240, 120) + [FILL], 75)
 # W25: Trainingslager draussen (So 18.4. - Fr 23.4.), keine Rollen-Dateien
 
-# -------- Optionale A-Einheiten in den geraden Wochen (vorher frei)
-A(2, 2, 10, 172, 5); A(6, 2, 15, 174, 5); A(10, 2, 15, 176, 5)
-A(14, 3, 10, 185, 5); A(18, 4, 4, 215, 4); A(22, 3, 10, 190, 5)
-AL(4, 170); AL(8, 175); AL(12, 180); AL(16, 188); AL(20, 190); AL(24, 193)
+# -------- Entlastungswochen: A ganz locker
+for wk in (4, 8, 12, 16, 20, 24):
+    AL(wk)
 
 # -------- Taper (Woche 26)
 add(26, "Mo", "Taper", "45min_3x3min_203W", "45 min, 3x3' @ 203 W, Pause 3' @ 110 W",
@@ -240,7 +221,7 @@ add(26, "Fr", "Taper", "30min_2x1min_203W", "30 min, 2x1' @ 203 W, Pause 2' @ 11
 
 # -------- README + Katalog
 cat_lines = ["Datei | Tag | Datum | Dauer min | Inhalt"]
-for wk_lbl, day, ds, fname, tot, title in sorted(catalog, key=lambda r: (r[0] == "Taper", r[0], r[1] != "Fr")):
+for wk_lbl, day, ds, fname, tot, title in sorted(catalog, key=lambda r: (r[0] == "Taper", r[0], r[1] != "Mo")):
     cat_lines.append(f"{fname} | {day} | {ds} | {tot:g} | {title}")
 
 readme = f"""MyWhoosh-Workouts fuer Eschborn-Frankfurt 2027
@@ -262,8 +243,8 @@ Hinweise
 - Pausen sind eigene Schritte mit Ziel-Watt (110 W nach A-Bloecken, 120 W in B).
 - In W23 gibt es keine B-Datei: dort steht eine Ausfahrt draussen im Plan.
 - In W25 gibt es keine Dateien: Trainingslager draussen (So 18.4. - Fr 23.4.).
-- Plan startet am Montag 2.11.2026. Jede Woche: B (Samstag) fest, A (Freitag) optional.
-  In Entlastungswochen ist A eine lockere 45-min-Einheit. W26 ist die Rennwoche mit drei kurzen Taper-Dateien.
+- Plan startet am Montag 2.11.2026. Jede Woche: B (Samstag) fest, A (Montag, Z2) optional, Freitag Ruhetag.
+  In Entlastungswochen ist A eine lockere 45-min-Einheit, in W7/W13/W19 der FTP-Test. W26 ist die Rennwoche mit drei kurzen Taper-Dateien.
 
 Katalog
 -------
@@ -277,5 +258,5 @@ with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(OUT, fn), fn)
 
 print(len(catalog), "workouts")
-for r in sorted(catalog, key=lambda r: (r[0] == "Taper", r[0], r[1] != "Fr")):
+for r in sorted(catalog, key=lambda r: (r[0] == "Taper", r[0], r[1] != "Mo")):
     print(r)

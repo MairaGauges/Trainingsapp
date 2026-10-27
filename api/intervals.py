@@ -52,7 +52,8 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self._denied():
             return
-        if self._route() != "events":
+        route = self._route()
+        if route not in ("events", "delete"):
             return self._json(404, {"error": "unbekannt"})
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
@@ -62,10 +63,10 @@ class handler(BaseHTTPRequestHandler):
         except ValueError:
             return self._json(400, {"error": "kein JSON"})
         try:
-            icu.clean(events)
+            (icu.clean if route == "events" else icu.clean_ids)(events)
         except icu.IntervalsError as e:
             return self._json(400, {"error": str(e)})
         try:
-            return self._json(200, {"count": icu.push(events)})
+            return self._json(200, {"count": (icu.push if route == "events" else icu.delete)(events)})
         except icu.IntervalsError as e:
             return self._json(502, {"error": str(e)})

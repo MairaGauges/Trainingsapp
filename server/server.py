@@ -175,17 +175,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._guard():
             return
-        if urllib.parse.urlsplit(self.path).path != "/api/intervals/events":
+        route = urllib.parse.urlsplit(self.path).path
+        if route not in ("/api/intervals/events", "/api/intervals/delete"):
             return self._json(404, {"error": "unbekannt"})
+        events_route = route.endswith("/events")
         raw = self._body()
         if raw is None:
             return self._json(413, {"error": "zu groß"})
         try:
-            events = icu.clean(json.loads(raw or b"null"))
+            events = (icu.clean if events_route else icu.clean_ids)(json.loads(raw or b"null"))
         except (ValueError, icu.IntervalsError) as e:
             return self._json(400, {"error": str(e) if isinstance(e, icu.IntervalsError) else "kein JSON"})
         try:
-            return self._json(200, {"count": icu.push(events)})
+            return self._json(200, {"count": (icu.push if events_route else icu.delete)(events)})
         except icu.IntervalsError as e:
             return self._json(502, {"error": str(e)})
 

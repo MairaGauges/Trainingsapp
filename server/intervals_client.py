@@ -53,19 +53,17 @@ def clean(events):
     return out
 
 
-def push(events):
-    """Schreibt die Workouts (upsert über external_id) und liefert die Anzahl."""
+def _call(method, path, payload):
     k = key()
     if not k:
         raise IntervalsError("Kein intervals.icu-Schlüssel hinterlegt")
-    body = json.dumps(clean(events)).encode("utf-8")
     auth = base64.b64encode(("API_KEY:" + k).encode()).decode()
-    req = urllib.request.Request(BASE + "/api/v1/athlete/0/events/bulk?upsert=true", data=body, method="POST",
+    req = urllib.request.Request(BASE + "/api/v1/athlete/0/" + path, data=json.dumps(payload).encode("utf-8"), method=method,
                                  headers={"Authorization": "Basic " + auth, "Content-Type": "application/json", "Accept": "application/json",
                                           "User-Agent": "ef27-trainer/1.0"})  # Cloudflare sperrt Python-urllib (Fehler 1010)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            res = json.loads(r.read() or b"[]")
+            return json.loads(r.read() or b"null")
     except urllib.error.HTTPError as e:
         hint = e.read()[:160].decode("utf-8", "replace").replace(k, "***").strip()
         if e.code == 401:
@@ -74,5 +72,22 @@ def push(events):
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise IntervalsError("intervals.icu nicht erreichbar: %s" % getattr(e, "reason", e))
     except ValueError:
-        res = []
+        return None
+
+
+def clean_ids(ids):
+    if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_EVENTS or not all(isinstance(i, str) and EXT_RE.match(i) for i in ids):
+        raise IntervalsError("Liste mit external_ids erwartet")
+    return ids
+
+
+def delete(ids):
+    """Entfernt eigene Termine (nur external_id mit ef27-). Nicht vorhandene werden ignoriert."""
+    res = _call("PUT", "events/bulk-delete", [{"external_id": i} for i in clean_ids(ids)])
+    return res if isinstance(res, int) else len(ids)
+
+
+def push(events):
+    """Schreibt die Workouts (upsert über external_id) und liefert die Anzahl."""
+    res = _call("POST", "events/bulk?upsert=true", clean(events))
     return len(res) if isinstance(res, list) else len(events)
