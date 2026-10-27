@@ -203,6 +203,11 @@ tr.selrow td{background:var(--accent-soft)}
 .chip.mvd{border-color:var(--accent);color:var(--accent)}
 .mv{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)}
 .mv select{font:inherit;font-size:13px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.ana{margin-top:8px;font-size:13px;border-left:3px solid var(--line);padding:4px 0 4px 10px}
+.ana.ok{border-color:var(--ok)}.ana.warn{border-color:var(--k-test)}.ana.hard{border-color:var(--accent)}
+.ana summary{cursor:pointer;line-height:1.4}
+.ana ul{margin:6px 0 0;padding-left:18px;color:var(--muted)}
+.ana li{margin:2px 0}
 .banner{font-size:14px;color:var(--ink);background:var(--accent-soft);border-radius:8px;padding:10px 12px}
 @media (max-width:900px){
   .main-grid,.g-grid{grid-template-columns:minmax(0,1fr)}
@@ -654,7 +659,10 @@ function readFit(buf) {
       out.push(buildActivity({
         points: recOk.filter(r => r.t >= t0 && r.t <= t1), start: t0, dur: timer || elapsed, elapsed,
         dist: s[9] != null ? s[9] / 100 : null, sport: sportOf(s[5], s[6]),
-        avgHr: s[16], maxHr: s[17], avgP: s[20], maxP: s[21], asc: s[22], np: s[34], cal: s[11]
+        avgHr: s[16], maxHr: s[17], avgP: s[20], maxP: s[21], asc: s[22], np: s[34], cal: s[11],
+        // Garmin: Trainingseffekt aerob/anaerob (×10), Trainingsbelastung (×65536), Anstrengung RPE (×10)
+        te: s[24] != null ? s[24] / 10 : null, ate: s[137] != null ? s[137] / 10 : null,
+        gload: s[168] != null ? s[168] / 65536 : null, rpe: s[193] != null ? s[193] / 10 : null
       }));
     }
   } else if (recOk.length) {
@@ -721,7 +729,9 @@ function buildActivity(o) {
     elapsed: Math.round(o.elapsed || dur), dist: dist != null ? Math.round(dist) : null,
     avgP: avgP != null ? Math.round(avgP) : null, np: np != null ? Math.round(np) : null, maxP: maxP != null ? Math.round(maxP) : null,
     avgHr: avgHr != null ? Math.round(avgHr) : null, maxHr: maxHr != null ? Math.round(maxHr) : null,
-    asc: o.asc != null ? Math.round(o.asc) : null, cal: o.cal != null ? Math.round(o.cal) : null
+    asc: o.asc != null ? Math.round(o.asc) : null, cal: o.cal != null ? Math.round(o.cal) : null,
+    te: o.te > 0 && o.te <= 5 ? o.te : null, ate: o.ate > 0 && o.ate <= 5 ? o.ate : null,
+    gload: o.gload > 0 && o.gload < 2000 ? Math.round(o.gload) : null, rpe: o.rpe > 0 && o.rpe <= 10 ? o.rpe : null
   };
   const ser = makeSeries(pts, o.start, dur);
   if (ser) a.series = ser;
@@ -915,7 +925,8 @@ function dayRow(w, i, d, first, extra) {
   const warn = moveWarning(w, i, d);
   const wf = (s.file ? `<div class="w">Workout: ${esc(woTitle(s.file))}${s.min ? ' · ' + s.min + ' min' : ''}</div>` : '')
     + (s.adapt ? `<div class="adapt">${s.adapt.msg}<small>${esc(s.adapt.why)}</small></div>` : '')
-    + (warn ? `<div class="adapt warn">${esc(warn)}</div>` : '');
+    + (warn ? `<div class="adapt warn">${esc(warn)}</div>` : '')
+    + (done.length ? anaHtml(analyzeSess(w, i, s, done[0])) : '');
   const col = s.sport ? `var(--s-${s.sport})` : 'var(--muted)';
   return `<div class="${cls}">
     ${dcell}
@@ -1124,7 +1135,7 @@ function renderGarmin() {
     if (cur.asc) m.push(['Höhenmeter', cur.asc + ' m']);
     const d = new Date(cur.start * 1000);
     detail = `<div class="card"><div class="card-h"><h3>${SPORT[cur.sport]} am ${DOW[(d.getDay() + 6) % 7]}, ${d.getDate()}. ${MON[d.getMonth()]}</h3><span class="muted">TSS und IF mit FTP ${Store.ftp} W</span></div>
-      <div class="mgrid">${m.map(x => `<div class="m"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('')}</div>${detailChart(cur)}</div>`;
+      <div class="mgrid">${m.map(x => `<div class="m"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('')}</div>${(() => { const f = sessForAct(cur); return f ? `<p class="muted" style="margin:10px 0 0">Geplant: Woche ${f.w.n}, ${esc(f.s.title)}</p>` + anaHtml(analyzeSess(f.w, f.i, f.s, cur)) : (cur.te ? `<p class="muted" style="margin:10px 0 0">Garmin-Trainingseffekt: aerob ${num(cur.te, 1)} (${TE_LBL(cur.te)})${cur.ate ? `, anaerob ${num(cur.ate, 1)}` : ''}</p>` : ''); })()}${detailChart(cur)}</div>`;
   }
   const table = list.length
     ? `<div class="tblwrap"><table><thead><tr><th>Datum</th><th>Sport</th><th class="r">Dauer</th><th class="r">Strecke</th><th class="r">Ø Leistung</th><th class="r">NP</th><th class="r">Ø HF</th><th class="r">TSS</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
@@ -1744,6 +1755,90 @@ async function pushTest() {
   } catch (e) { toast('MyWhoosh: ' + ((e && e.message) || e)); }
   pushing = false; renderWeek();
 }
+/* ---------- Analyse der Radeinheiten (Spinning, Rolle A/B) ---------- */
+const TE_LBL = v => v < 1 ? 'kein Effekt' : v < 2 ? 'gering' : v < 3 ? 'erhaltend' : v < 4 ? 'verbessernd' : v < 5 ? 'stark verbessernd' : 'überlastend';
+// Mittelwert einer Verlaufsreihe zwischen zwei Zeitpunkten (Sekunden ab Start), nur volle Messpunkte
+function serAvg(arr, step, t0, t1) {
+  let sum = 0, n = 0;
+  for (let k = 0; k < arr.length; k++) {
+    if (k * step < t0 || (k + 1) * step > t1 || arr[k] == null) continue;
+    sum += arr[k]; n++;
+  }
+  return n ? sum / n : null;
+}
+// Welche geplante Einheit hat diese Aktivität erledigt?
+function sessForAct(a) {
+  const wi = actWeek(a), w = W[wi];
+  if (!w) return null;
+  for (let i = 0; i < 7; i++) {
+    const s = w.sessions[i];
+    if (s && s.sport === 'rad' && garminDone(w, s, i).some(x => x.id === a.id)) return { w, i, s: sessOf(w, i) };
+  }
+  return null;
+}
+function analyzeSess(w, i, s, a) {
+  if (!a || a.sport !== 'rad') return null;
+  const ftp = Store.ftp, ser = a.series || {}, hrMax = hrMaxSeen() || a.maxHr || 0, items = [];
+  let verdict = '', tone = '';
+  const ld = loadOf(a, hrMax), plan = plannedTss(s);
+  items.push(`Dauer ${fmtDur(a.dur)}${s.min ? ` (geplant ${s.min} min)` : ''} · Belastung ${Math.round(ld.tss)} TSS${ld.est ? ' (geschätzt)' : ''}${plan ? `, geplant ca. ${Math.round(plan)}` : ''}`);
+  if (a.te) items.push(`Garmin-Trainingseffekt: aerob ${num(a.te, 1)} (${TE_LBL(a.te)})${a.ate ? `, anaerob ${num(a.ate, 1)} (${TE_LBL(a.ate)})` : ''}`);
+  if (s.type === 'spin') {
+    const z = spinZones(a, hrMax);
+    if (z) items.push(`${Math.round(z.hi)} min im harten Bereich, ${Math.round(z.thr)} min an der Schwelle (nach ${z.by})`);
+    if (a.maxHr && hrMax) items.push(`Spitzenpuls ${a.maxHr} (${Math.round(a.maxHr / hrMax * 100)} % deines höchsten gemessenen Pulses)`);
+    if (!z) verdict = 'Ohne Puls- oder Leistungsverlauf lässt sich die Intensität nicht bewerten.';
+    else if (z.hi >= 8) { verdict = 'Sehr harte Einheit mit viel Zeit im roten Bereich: starker Reiz für VO2max. Die nächsten zwei Tage locker.'; tone = 'hard'; }
+    else if (z.hi >= 3 || z.thr >= 15) { verdict = 'Harte Intervalleinheit, Ziel erreicht.'; tone = 'ok'; }
+    else { verdict = 'Eher moderat. Als harte Einheit der Woche etwas wenig; beim nächsten Kurs die Intervalle mehr fordern.'; tone = 'warn'; }
+    return { verdict, tone, items };
+  }
+  if (!s.file) return null;
+  const steps = zwoSteps(woXml(s.file)), planned = steps.reduce((t, x) => t + x.dur, 0);
+  if (a.dur < planned * .8) items.push(`Nach ${fmtDur(a.dur)} beendet, geplant waren ${Math.round(planned / 60)} min.`);
+  const IF = a.np || a.avgP ? (a.np || a.avgP) / ftp : null;
+  if (IF) items.push(`Intensität (IF) ${num(IF, 2)}${a.np ? ` · NP ${a.np} W` : ''}${a.avgHr ? ` · Ø Puls ${a.avgHr}` : ''}`);
+  // FTP-Test: Schätzung aus den besten 20 min
+  if (s.tag === 'Test' || steps.some(x => x.kind === 'free' && x.dur >= 1200)) {
+    const b20 = bestPower(a, 1200);
+    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). In MyWhoosh und oben im Kopf eintragen.`; tone = 'ok'; }
+    else verdict = 'Für die FTP-Schätzung fehlen 20 min Leistungsdaten.';
+    return { verdict, tone, items };
+  }
+  // Arbeitsblöcke: gleichmäßige Schritte ab Zone 3 (76 % FTP) und mindestens 2 min
+  const blocks = []; let t = 0;
+  for (const x of steps) { if (x.kind === 'steady' && x.a >= .76 && x.dur >= 120) blocks.push({ t0: t, t1: t + x.dur, w: Math.round(x.a * ftp) }); t += x.dur; }
+  if (blocks.length && ser.step && (ser.p || ser.hr)) {
+    const res = blocks.filter(b => b.t1 <= a.dur + 30).map(b => ({ w: b.w, p: ser.p ? serAvg(ser.p, ser.step, b.t0 + 30, b.t1) : null, hr: ser.hr ? serAvg(ser.hr, ser.step, b.t0 + 30, b.t1) : null }));
+    const withP = res.filter(r => r.p != null), inT = withP.filter(r => Math.abs(r.p - r.w) / r.w <= .05);
+    if (withP.length) items.push(`Blöcke: ${inT.length} von ${blocks.length} im Ziel (±5 %) · ${withP.map(r => Math.round(r.p) + '/' + r.w + ' W').join(', ')}`);
+    const hrs = res.filter(r => r.hr != null);
+    const drift = hrs.length >= 2 ? hrs[hrs.length - 1].hr - hrs[0].hr : null;
+    if (drift != null) items.push(`Puls im ersten Block ${Math.round(hrs[0].hr)}, im letzten ${Math.round(hrs[hrs.length - 1].hr)} (${drift >= 0 ? '+' : ''}${Math.round(drift)})`);
+    if (res.length < blocks.length) { verdict = `Nur ${res.length} von ${blocks.length} Blöcken gefahren.`; tone = 'warn'; }
+    else if (withP.length && inT.length < withP.length) { verdict = 'Einige Blöcke unter dem Ziel. Wenn das öfter passiert, ist die FTP im Moment zu hoch angesetzt.'; tone = 'warn'; }
+    else if (drift != null && drift > 12) { verdict = 'Blöcke geschafft, aber der Puls stieg deutlich. Hart an der Grenze: ausreichend erholen und gut trinken.'; tone = 'hard'; }
+    else { verdict = 'Blöcke sauber im Ziel, Puls kontrolliert. Gute Einheit.'; tone = 'ok'; }
+    return { verdict, tone, items };
+  }
+  // Z2-Fahrt: Entkopplung Leistung zu Puls (erste gegen zweite Hälfte, ohne Ein- und Ausfahren)
+  if (ser.step && ser.p && ser.hr && a.dur >= 1800) {
+    const m0 = 600, m1 = a.dur - 300, mid = (m0 + m1) / 2;
+    const p1 = serAvg(ser.p, ser.step, m0, mid), h1 = serAvg(ser.hr, ser.step, m0, mid), p2 = serAvg(ser.p, ser.step, mid, m1), h2 = serAvg(ser.hr, ser.step, mid, m1);
+    if (p1 && h1 && p2 && h2) {
+      const dec = ((p1 / h1) - (p2 / h2)) / (p1 / h1) * 100;
+      items.push(`Entkopplung ${num(dec, 1)} % (Puls ${Math.round(h1)} → ${Math.round(h2)} bei ${Math.round(p1)} → ${Math.round(p2)} W)`);
+      if (IF && IF > .78) { verdict = 'Für eine Z2-Fahrt zu hart. Ruhiger fahren, sonst fehlt die Frische fürs Spinning.'; tone = 'warn'; }
+      else if (dec < 5) { verdict = 'Puls bleibt stabil: Grundlagenausdauer gut, genau so soll Z2 sein.'; tone = 'ok'; }
+      else if (dec < 8) { verdict = 'Leichte Drift gegen Ende. Normal bei längeren Fahrten, wird mit mehr Grundlage weniger.'; tone = 'ok'; }
+      else { verdict = 'Deutliche Drift: der Puls läuft weg. Mögliche Gründe: zu warm, zu wenig getrunken, müde. Oder die Grundlage braucht noch Zeit.'; tone = 'warn'; }
+      return { verdict, tone, items };
+    }
+  }
+  verdict = IF ? (IF > .78 ? 'Härter gefahren als geplant.' : 'Wie geplant gefahren.') : 'Ohne Leistungsdaten nur eingeschränkt auswertbar.';
+  return { verdict, tone, items };
+}
+const anaHtml = r => r ? `<details class="ana ${r.tone}"><summary><b>Analyse:</b> ${esc(r.verdict)}</summary><ul>${r.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '';
 function moveSession(wn, i, to) {
   const w = W[wn - 1], key = dayKey(wn, i);
   if (!canMove(w.sessions[i]) || !(to >= 0 && to <= 6)) return;
