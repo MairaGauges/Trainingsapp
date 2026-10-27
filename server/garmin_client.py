@@ -1,4 +1,5 @@
 """Garmin Connect Personal API (nur Standardbibliothek). Genutzt von server/server.py und api/garmin.py (Vercel)."""
+import base64
 import json
 import os
 import threading
@@ -14,6 +15,31 @@ TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"
 
 class GarminError(Exception):
     pass
+
+
+def jwt_exp(tok):
+    """exp-Claim eines JWT (Sekunden) oder None."""
+    try:
+        part = tok.split(".")[1]
+        return json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4))).get("exp")
+    except (IndexError, ValueError, AttributeError):
+        return None
+
+
+def parse_token(body):
+    """Token-Antwort als JSON-Objekt, JSON-String oder rohes JWT."""
+    text = body.decode("utf-8", "replace").strip()
+    try:
+        j = json.loads(text)
+    except ValueError:
+        j = text
+    if isinstance(j, str):
+        if j.count(".") != 2:
+            raise GarminError("Token-Antwort nicht lesbar")
+        return {"access_token": j}
+    if not isinstance(j, dict):
+        raise GarminError("Token-Antwort nicht lesbar")
+    return j
 
 
 class Garmin:
@@ -39,7 +65,9 @@ class Garmin:
         return bool(self.key())
 
     def _request(self, method, path, headers, timeout=30):
-        req = urllib.request.Request(GARMIN_BASE + path, method=method, headers=headers, data=b"" if method == "POST" else None)
+        # wie Garmins curl-Beispiel: POST ohne Körper, kein Content-Type, Accept */*
+        headers = dict({"Accept": "*/*", "User-Agent": "ef27-trainer/1.0"}, **headers)
+        req = urllib.request.Request(GARMIN_BASE + path, method=method, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.status, r.read(), r.headers.get("Content-Type", "")
@@ -55,18 +83,18 @@ class Garmin:
             k = self.key()
             if not k:
                 raise GarminError("Kein Garmin-Schlüssel hinterlegt")
-            status, body, _ = self._request("POST", TOKEN_PATH, {"Authorization": "ApiKey " + k, "Accept": "application/json"})
-            if status != 200:
+            status, body, ctype = self._request("POST", TOKEN_PATH, {"Authorization": "ApiKey " + k})
+            if status in (401, 403):
                 raise GarminError("Schlüssel abgelehnt (HTTP %d). Abgelaufen oder gelöscht?" % status)
-            try:
-                j = json.loads(body)
-            except ValueError:
-                raise GarminError("Token-Antwort ist kein JSON")
+            if status != 200:
+                hint = body[:160].decode("utf-8", "replace").replace(k, "***").strip()
+                raise GarminError("Token-Abruf fehlgeschlagen (HTTP %d, %s)%s" % (status, ctype or "ohne Typ", ": " + hint if hint else ""))
+            j = parse_token(body)
             tok = j.get("access_token") or j.get("accessToken") or j.get("token")
             if not tok:
                 raise GarminError("Token-Antwort ohne access_token (Felder: %s)" % ", ".join(sorted(j)[:8]))
             ttl = j.get("expires_in") or j.get("expiresIn")
-            exp = j.get("expires_at") or j.get("expiresAt")
+            exp = j.get("expires_at") or j.get("expiresAt") or jwt_exp(tok)
             if isinstance(ttl, (int, float)):
                 self.expires = time.time() + float(ttl)
             elif isinstance(exp, (int, float)):
