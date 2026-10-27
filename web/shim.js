@@ -130,8 +130,8 @@
         loginEl.innerHTML = '<form style="width:100%;max-width:340px;display:grid;gap:12px">' +
           '<h1 id="ef27-login-h" style="margin:0 0 4px;font-size:22px">Eschborn-Frankfurt 2027</h1>' +
           '<p data-msg style="margin:0;color:#9fb3c1;min-height:1.3em" aria-live="polite"></p>' +
-          '<label style="display:grid;gap:4px">E-Mail<input name="email" type="email" autocomplete="username" required style="font:inherit;padding:10px;border-radius:8px;border:1px solid #3a4b57;background:#16222b;color:inherit"></label>' +
-          '<label style="display:grid;gap:4px">Passwort<input name="password" type="password" autocomplete="current-password" required style="font:inherit;padding:10px;border-radius:8px;border:1px solid #3a4b57;background:#16222b;color:inherit"></label>' +
+          '<label style="display:grid;gap:4px">E-Mail<input name="email" type="email" autocomplete="username" required style="font:inherit;font-size:16px;padding:10px;border-radius:8px;border:1px solid #3a4b57;background:#16222b;color:inherit"></label>' +
+          '<label style="display:grid;gap:4px">Passwort<input name="password" type="password" autocomplete="current-password" required style="font:inherit;font-size:16px;padding:10px;border-radius:8px;border:1px solid #3a4b57;background:#16222b;color:inherit"></label>' +
           '<button style="font:inherit;font-weight:600;padding:11px;border:0;border-radius:8px;background:#e9b949;color:#0e161c;cursor:pointer">Anmelden</button></form>';
         loginEl.querySelector('form').addEventListener('submit', async ev => {
           ev.preventDefault();
