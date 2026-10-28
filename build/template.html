@@ -161,6 +161,7 @@ details.tv summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight
 .wo-h b{font-weight:600}
 .wo svg{display:block;width:100%;height:56px;margin:8px 0;border-bottom:1px solid var(--line)}
 .wo-m{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);align-items:center;justify-content:space-between}
+.wo-m + .wo-m{margin-top:8px}
 .zrow{display:grid;grid-template-columns:14px 1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
 .zrow:first-of-type{border-top:0}
 .zrow .p{color:var(--muted);font-size:12px}
@@ -221,7 +222,8 @@ tr.selrow td{background:var(--accent-soft)}
 .exchk input{width:20px;height:20px;accent-color:var(--ok);margin:0;flex:none;cursor:pointer}
 .ex{transition:background .2s}
 .ex.done{background:var(--soft);border-radius:16px;border-top-color:transparent;margin-inline:-8px;padding-inline:8px}
-.ex.done + .ex{border-top-color:transparent}
+.ex.done + .ex{border-top-color:transparent;margin-top:8px}
+.ex + .ex.done{margin-top:8px}
 .ex.done .ex-h b{color:var(--muted)}
 .ex.done .sets,.ex.done .sets2,.ex.done .hint{opacity:.55}
 .card.sdone .ex:not(.done){opacity:.6}
