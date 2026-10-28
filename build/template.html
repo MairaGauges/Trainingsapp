@@ -112,7 +112,6 @@ button,input{font:inherit;color:inherit}
 .day{display:grid;grid-template-columns:70px minmax(0,1fr) 150px;gap:4px 14px;padding:12px 8px;border-top:1px solid var(--line);transition:background .2s}
 .day.done{background:var(--panel2);border-radius:18px;border-top-color:transparent}
 .day.done > div:nth-child(2) > :not(.sub),.sub.done{opacity:.55}
-.day.done > div > .t .ttl,.sub.done .t .ttl{text-decoration:line-through;text-decoration-thickness:1px}
 .dchk{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--panel);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:transparent;transition:background .15s,border-color .15s}
 .dchk:hover{border-color:var(--ok)}
 .dchk svg{width:15px;height:15px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
@@ -961,7 +960,7 @@ function dayRow(w, i, d, first, extra) {
   const dcell = first ? `<div class="d">${DOW[d]}<small>${fmtDM(date)}</small></div>` : '<div class="d"></div>';
   const extraTxt = extra && extra.length ? `<div class="x">Zusätzlich: ${extra.map(a => SPORT[a.sport] + ' ' + fmtDur(a.dur)).join(', ')}</div>` : '';
   const cls = 'day' + (isToday ? ' today' : '') + (first ? '' : ' cont');
-  if (i == null) return `<div class="${cls}">${dcell}<div><div class="t"><i class="dot"></i>Frei<span class="chip">frei</span></div><div class="x">Die Einheit von heute ist verschoben.</div>${extraTxt}</div><div class="st"></div></div>`;
+  if (i == null) return `<div class="${cls}">${dcell}<div><div class="t">Frei<span class="chip">frei</span></div><div class="x">Die Einheit von heute ist verschoben.</div>${extraTxt}</div><div class="st"></div></div>`;
   const s = sessOf(w, i);
   const done = garminDone(w, s, i);
   const sid = sessionIdForDay(s, i), ps = sid ? planSession(sid) : null, manual = manualDone(w, s, i);
@@ -998,7 +997,7 @@ function dayRow(w, i, d, first, extra) {
   const tagCls = { hart: 't-hard', Test: 't-test', locker: 't-easy', Z2: 't-easy', lang: 't-long', kurz: 't-easy', empfohlen: 't-test', Renntag: 't-hard' }[s.tag] || '';
   return `<div class="${cls}${isOn ? ' done' : ''}" style="--c:${s.sport ? col : 'transparent'}">
     ${dcell}
-    <div><div class="t">${chk || `<i class="dot" style="--c:${col}"></i>`}<span class="ttl">${esc(title)}</span>${s.tag ? `<span class="chip ${tagCls}">${esc(s.tag)}</span>` : ''}${s.opt ? '<span class="chip opt">optional</span>' : ''}${moved}</div>
+    <div><div class="t">${chk}<span class="ttl">${esc(title)}</span>${s.tag ? `<span class="chip ${tagCls}">${esc(s.tag)}</span>` : ''}${s.opt ? '<span class="chip opt">optional</span>' : ''}${moved}</div>
       ${detail ? `<div class="x">${detail}</div>` : ''}${wf}${extraTxt}${s.stabi ? stabiRow(w) : ''}</div>
     ${st}</div>`;
 }
