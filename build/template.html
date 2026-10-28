@@ -128,7 +128,6 @@ button,input{font:inherit;color:inherit}
 .day .t{font-weight:600;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .day .x{color:var(--muted);font-size:14px;margin-top:3px}
 .day .x b{color:var(--ink);font-weight:600}
-.day .x .why{display:block;margin-top:4px;color:var(--ink);opacity:.8}
 .day .w{margin-top:5px;font-size:13px;color:var(--accent);font-weight:500}
 .st{font-size:13px;text-align:right;color:var(--muted)}
 .st.ok{color:var(--ok);font-weight:600}
@@ -967,9 +966,9 @@ function dayRow(w, i, d, first, extra) {
   const done = garminDone(w, s, i);
   const sid = sessionIdForDay(s, i), ps = sid ? planSession(sid) : null, manual = manualDone(w, s, i);
   const title = ps ? ps.name : s.title;
-  // Beschreibung nur bei Rolleneinheiten (dazu, was sie bringt), Trainingslager, Rennen und Tests; sonst nur der Name
+  // Beschreibung nur bei Rolleneinheiten, Trainingslager, Rennen und Tests; sonst nur der Name
   const showDetail = !ps && (s.file || s.type === 'B' || s.type === 'camp' || s.type === 'race' || s.tag === 'Test');
-  const detail = showDetail ? s.detail + (s.why ? `<span class="why"><b>Bringt:</b> ${esc(s.why)}</span>` : '') : '';
+  const detail = showDetail ? s.detail : '';
   const isOn = !!(done.length || manual);
   // Runder Haken vor dem Titel: von Hand abhaken; von Garmin erkannte Einheiten sind fest abgehakt
   const chk = s.sport ? `<button class="dchk${isOn ? ' on' : ''}" data-ddone="${i}" data-wn="${w.n}" aria-pressed="${isOn}"${done.length ? ' disabled title="Von Garmin erkannt"' : ''} aria-label="${esc(title)} am ${DOW[d]} ${done.length ? 'von Garmin als erledigt erkannt' : isOn ? 'nicht mehr als erledigt markieren' : 'als erledigt abhaken'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>` : '';
