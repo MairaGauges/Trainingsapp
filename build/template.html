@@ -267,6 +267,18 @@ tr.selrow td{background:var(--accent-soft)}
 .stabs button[aria-pressed=true] small{color:inherit}
 .stabs button.ok small{color:var(--ok)}
 #garmin{display:flex;flex-direction:column;gap:18px}
+#pack{display:flex;flex-direction:column;gap:14px}
+.ptabs{display:flex;gap:4px;padding:5px;background:var(--panel);box-shadow:var(--shadow);border-radius:999px;max-width:520px}
+.ptabs button{flex:1 1 0;min-width:0;min-height:46px;font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:999px;cursor:pointer;line-height:1.2}
+.ptabs button small{display:block;font-weight:500;font-size:11px}
+.ptabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pitem{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:14px;padding:4px 6px 4px 12px;transition:background .2s,opacity .2s}
+.pitem label{flex:1;display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;min-width:0}
+.pitem input{width:22px;height:22px;accent-color:var(--ok);margin:0;flex:none;cursor:pointer}
+.pitem.on{opacity:.5}
+.padd{display:flex;gap:8px;margin-top:12px}
+.padd .fld{flex:1}
 #tabbar,#mbar{display:none}
 button{touch-action:manipulation}
 /* Handy: App-Ansicht mit Tab-Leiste unten und fixer Wochenwahl oben */
@@ -274,7 +286,8 @@ button{touch-action:manipulation}
   html{-webkit-text-size-adjust:100%}
   body{-webkit-tap-highlight-color:transparent;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));overscroll-behavior-y:none}
   .wrap{padding-inline:12px;padding-block:12px 16px;gap:14px}
-  body[data-view] #hero,body[data-view] #strip,body[data-view] #week,body[data-view] #strength,body[data-view] #garmin,body[data-view] #progress{display:none}
+  body[data-view] #hero,body[data-view] #strip,body[data-view] #week,body[data-view] #strength,body[data-view] #garmin,body[data-view] #progress,body[data-view] #pack{display:none}
+  body[data-view=packen] #pack{display:flex}
   body[data-view=fortschritt] #progress{display:flex}
   .tiles{grid-template-columns:1fr 1fr;gap:10px}
   .tile .v{font-size:26px}
@@ -299,7 +312,7 @@ button{touch-action:manipulation}
   .ftp input{font-size:26px;width:92px;min-height:44px}
   /* Wochenwahl oben */
   #mbar{display:flex;position:sticky;top:0;z-index:4;align-items:center;gap:8px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--line)}
-  body[data-view=plan] #mbar,body[data-view=garmin] #mbar,body[data-view=fortschritt] #mbar{display:none}
+  body[data-view=plan] #mbar,body[data-view=garmin] #mbar,body[data-view=fortschritt] #mbar,body[data-view=packen] #mbar{display:none}
   #mbar .step{flex:none;width:48px;height:44px;border:0;background:var(--panel);box-shadow:var(--shadow);border-radius:999px;font-family:var(--font-d);font-size:26px;line-height:1;color:var(--ink);cursor:pointer}
   #mbar .step[disabled]{opacity:.35}
   #mbar .mid{flex:1;min-width:0;white-space:nowrap;height:44px;border:0;background:none;text-align:center;font-family:var(--font-d);font-weight:600;font-size:21px;line-height:1.05;color:var(--ink);cursor:pointer}
@@ -308,7 +321,7 @@ button{touch-action:manipulation}
   .wk-head .nav{display:none}
   /* Tab-Leiste */
   #tabbar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:999px;box-shadow:0 8px 28px rgba(34,48,58,.18);padding:6px}
-  #tabbar button{position:relative;flex:1;min-width:0;min-height:56px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--muted);font-size:10.5px;letter-spacing:-.01em;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
+  #tabbar button{position:relative;flex:1;min-width:0;min-height:56px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--muted);font-size:10px;letter-spacing:-.02em;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
   #tabbar button[aria-current=page]{color:var(--ink)}
   #tabbar button[aria-current=page] svg{background:var(--nav);color:var(--nav-ink);border-radius:999px;padding:6px;width:36px;height:36px;box-sizing:border-box}
   #tabbar svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -349,6 +362,7 @@ button{touch-action:manipulation}
   <section id="strength"></section>
   <section id="progress" aria-label="Trainingsfortschritt"></section>
   <section id="garmin"></section>
+  <section id="pack" aria-label="Packlisten"></section>
 </div>
 <nav id="tabbar" aria-label="Ansichten"></nav>
 <div id="msg" class="toast" role="status" aria-live="polite" hidden></div>
@@ -413,7 +427,7 @@ let selAct = null;
 let DL;            // undefined = wird geladen, null = nicht verfügbar
 let busy = false;
 let lastImport = [];
-const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, sloaded: false };
+const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, pack: null, sloaded: false };
 
 /* ---------- Speicher: Dashboard-Datenbank, sonst Browser, sonst Sitzung ---------- */
 function localLoad() {
@@ -430,6 +444,8 @@ function localLoad() {
     if (dl) Store.dlogs = JSON.parse(dl) || {};
     const mv = localStorage.getItem('ef27.moves');
     if (mv) Store.moves = JSON.parse(mv) || {};
+    const pk = localStorage.getItem('ef27.pack');
+    if (pk) Store.pack = JSON.parse(pk);
     Store.mode = 'local';
   } catch (e) { Store.mode = 'memory'; }
   Store.sloaded = true;
@@ -442,6 +458,7 @@ function localSave() {
     localStorage.setItem('ef27.slogs', JSON.stringify(Store.slogs));
     localStorage.setItem('ef27.dlogs', JSON.stringify(Store.dlogs));
     localStorage.setItem('ef27.moves', JSON.stringify(Store.moves));
+    if (Store.pack) localStorage.setItem('ef27.pack', JSON.stringify(Store.pack));
   } catch (e) { Store.mode = 'memory'; }
 }
 async function initStore() {
@@ -458,6 +475,10 @@ async function initStore() {
     db.doc('settings/main').onSnapshot(s => {
       if (s.exists) { const f = Number((s.data() || {}).ftp); if (f > 0) Store.ftp = f; }
       render();
+    }, () => {});
+    db.doc('pack/main').onSnapshot(sn => {
+      Store.pack = sn.exists ? JSON.parse(JSON.stringify(sn.data())) : null;
+      renderPackSafe();
     }, () => {});
     db.doc('strength/plan').onSnapshot(sn => {
       Store.splan = sn.exists ? JSON.parse(JSON.stringify(sn.data())) : null;
@@ -1621,6 +1642,46 @@ function renderProgress() {
       <p class="note">Nur lockere Radfahrten ab 30 min (unter 85 % der FTP). Mehr Watt bei gleichem Puls heißt: dein Herz-Kreislauf-System arbeitet effizienter.</p></div>`;
 }
 
+/* ---------- Packlisten ---------- */
+const PACK_LISTS = [['gym', 'Gym'], ['spin', 'Spinning'], ['swim', 'Schwimmen']];
+const PACK_DEFAULT = {
+  gym: ['Trainingsschuhe', 'Sportshirt und Shorts', 'Handtuch', 'Trinkflasche', 'Mitgliedskarte', 'Schloss für den Spind', 'Kopfhörer', 'Handy mit Kraftplan', 'Duschzeug', 'Wechselkleidung'],
+  spin: ['Radhose mit Polster', 'Funktionsshirt', 'Radschuhe oder Sportschuhe', 'Garmin geladen, Pulsgurt', '2 Trinkflaschen', 'Großes Handtuch', 'Snack oder Gel', 'Mitgliedskarte', 'Schloss für den Spind', 'Duschzeug', 'Wechselkleidung'],
+  swim: ['Badehose oder Badeanzug', 'Schwimmbrille', 'Badekappe', 'Handtuch', 'Badelatschen', 'Duschgel und Shampoo', 'Garmin im Schwimmmodus', 'Trinkflasche', 'Münze oder Chip für den Spind', 'Kamm oder Bürste', 'Wechselkleidung', 'Snack für danach']
+};
+let packTab = (() => { try { return localStorage.getItem('ef27.ptab') || 'gym'; } catch (e) { return 'gym'; } })();
+function packData() {
+  if (!Store.pack || !Store.pack.lists) {
+    let n = 0;
+    Store.pack = { lists: {}, checked: {} };
+    PACK_LISTS.forEach(([k]) => { Store.pack.lists[k] = PACK_DEFAULT[k].map(t => ({ id: 'p' + (n++), t })); Store.pack.checked[k] = {}; });
+  }
+  return Store.pack;
+}
+function persistPack() {
+  return enqueue(async () => { if (Store.db) await Store.db.doc('pack/main').set(Store.pack); else localSave(); });
+}
+function renderPackSafe() {
+  const a = document.activeElement;
+  if (a && a.closest && a.closest('#pack') && a.tagName === 'INPUT' && a.type === 'text') return;   // nicht beim Tippen neu zeichnen
+  renderPack();
+}
+function renderPack() {
+  const el = $('#pack'); if (!el) return;
+  const P = packData(), list = P.lists[packTab] || [], chk = P.checked[packTab] || {};
+  const cnt = k => `${(P.lists[k] || []).filter(x => (P.checked[k] || {})[x.id]).length}/${(P.lists[k] || []).length}`;
+  const left = list.filter(x => !chk[x.id]).length;
+  el.innerHTML = `<div class="card-h" style="margin:0"><div class="wk-title"><h2>Packlisten</h2></div></div>
+    <div class="ptabs" role="group" aria-label="Packliste wählen">${PACK_LISTS.map(([k, n]) => `<button data-ptab="${k}" aria-pressed="${k === packTab}">${n}<small>${cnt(k)}</small></button>`).join('')}</div>
+    <div class="card"><div class="card-h"><h3>${esc((PACK_LISTS.find(x => x[0] === packTab) || [, ''])[1])}</h3>
+      <span class="muted">${list.length ? (left ? `noch ${left} ${left === 1 ? 'Sache' : 'Sachen'}` : 'Alles eingepackt ✓') : ''}</span></div>
+      <ul class="plist">${list.map(x => `<li class="pitem${chk[x.id] ? ' on' : ''}"><label><input type="checkbox" data-pchk="${esc(x.id)}"${chk[x.id] ? ' checked' : ''}><span>${esc(x.t)}</span></label>
+        <button class="x-btn" data-pdel="${esc(x.id)}" aria-label="${esc(x.t)} entfernen">✕</button></li>`).join('')}</ul>
+      <form class="padd" data-padd><input class="fld" type="text" name="t" maxlength="80" placeholder="Etwas hinzufügen …" aria-label="Neuer Gegenstand"><button class="btn sm">Hinzufügen</button></form>
+      <div style="margin-top:12px"><button class="btn ghost sm" data-action="p-reset"${Object.keys(chk).length ? '' : ' disabled'}>Liste zurücksetzen</button></div>
+    </div>`;
+}
+
 /* ---------- Handy-Ansicht ---------- */
 const VIEWS = [
   ['woche', 'Woche', '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],
@@ -1628,6 +1689,7 @@ const VIEWS = [
   ['workouts', 'Workouts', '<path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19.5h14"/>'],
   ['fortschritt', 'Fortschritt', '<path d="M4 17.5l5-5.5 4 3.5 7-8M15 7.5h5v5"/>'],
   ['garmin', 'Garmin', '<path d="M4 4.5V19.5H20M8 15l3-4.5 3 2 5-6"/>'],
+  ['packen', 'Packen', '<path d="M5 8.5h14l-1 11.5H6z"/><path d="M9 8.5V6.5a3 3 0 0 1 6 0v2"/>'],
   ['plan', 'Plan', '<rect x="4" y="4" width="6.5" height="6.5" rx="1.3"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.3"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.3"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.3"/>']
 ];
 let view = 'woche';
@@ -1653,7 +1715,7 @@ function renderChrome() {
     <button class="step" data-action="next" aria-label="Nächste Woche"${sel === W.length - 1 ? ' disabled' : ''}>›</button>`;
   $('#tabbar').innerHTML = VIEWS.map(v => `<button data-view="${v[0]}"${v[0] === view ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${v[2]}</svg><span>${v[1]}</span></button>`).join('');
 }
-function render() { renderHero(); renderStrip(); renderWeek(); renderStrengthSafe(); renderProgress(); renderGarmin(); renderChrome(); }
+function render() { renderHero(); renderStrip(); renderWeek(); renderStrengthSafe(); renderProgress(); renderGarmin(); renderPackSafe(); renderChrome(); }
 
 /* ---------- Krafttraining ---------- */
 let editS = false, pendingS = false, focusNew = null;
@@ -2085,6 +2147,15 @@ document.addEventListener('click', ev => {
     if (isPhone() && wkEl.closest('#strip')) { view = 'woche'; try { localStorage.setItem('ef27.view', view); } catch (e) {} window.scrollTo(0, 0); }
     render(); return;
   }
+  const ptb = ev.target.closest('[data-ptab]');
+  if (ptb) { packTab = ptb.dataset.ptab; try { localStorage.setItem('ef27.ptab', packTab); } catch (e) {} renderPack(); const b = $('#pack [data-ptab="' + packTab + '"]'); if (b) b.focus(); return; }
+  const pdl = ev.target.closest('[data-pdel]');
+  if (pdl) {
+    const P = packData(), id = pdl.dataset.pdel;
+    P.lists[packTab] = (P.lists[packTab] || []).filter(x => x.id !== id);
+    if (P.checked[packTab]) delete P.checked[packTab][id];
+    persistPack(); renderPack(); return;
+  }
   const stb = ev.target.closest('[data-stab]');
   if (stb) {
     sTab = stb.dataset.stab;
@@ -2109,6 +2180,7 @@ document.addEventListener('click', ev => {
     else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
     else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
     else if (a === 'logout') window.ef27Logout();
+    else if (a === 'p-reset') { const P = packData(); P.checked[packTab] = {}; persistPack(); renderPack(); toast('Liste zurückgesetzt.'); }
     else if (a === 'ftp-take') { const v = Number(act.dataset.v); if (v >= 80 && v <= 500) storeFtp(v).then(() => { render(); toast('FTP auf ' + v + ' W gesetzt. In MyWhoosh auch eintragen.'); }); }
     else if (a === 'zip-all') saveZip('MyWhoosh_Alle_Workouts.zip', Object.keys(DATA.workouts).sort());
     else if (a === 'stabi-create' && Store.splan && !planSession('s3')) {
@@ -2157,10 +2229,27 @@ document.addEventListener('click', ev => {
     storeRemove(del.dataset.del).then(() => { if (!Store.db) render(); }).catch(() => toast('Löschen fehlgeschlagen.'));
   }
 });
+document.addEventListener('submit', ev => {
+  const f = ev.target.closest('[data-padd]');
+  if (!f) return;
+  ev.preventDefault();
+  const t = f.t.value.trim(); if (!t) return;
+  const P = packData(), L = P.lists[packTab] || (P.lists[packTab] = []);
+  L.push({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t: t.slice(0, 80) });
+  persistPack(); f.t.value = ''; renderPack();
+  const inp = $('#pack [data-padd] input'); if (inp) inp.focus();
+});
 document.addEventListener('change', ev => {
   if (ev.target.id === 'fileIn' && ev.target.files && ev.target.files.length) { const fl = Array.from(ev.target.files); ev.target.value = ''; importFiles(fl); }
   else if (ev.target.dataset && ev.target.dataset.move) { buzz(); moveSession(Number(ev.target.dataset.wn), Number(ev.target.dataset.move), Number(ev.target.value)); }
   else if (ev.target.dataset && ev.target.dataset.exd) { buzz(); toggleExDone(ev.target); }
+  else if (ev.target.dataset && ev.target.dataset.pchk) {
+    buzz();
+    const P = packData(), c = P.checked[packTab] || (P.checked[packTab] = {}), id = ev.target.dataset.pchk;
+    if (ev.target.checked) c[id] = true; else delete c[id];
+    persistPack(); renderPack();
+    const nb = $('#pack [data-pchk="' + id + '"]'); if (nb) nb.focus();
+  }
   else if (ev.target.dataset && ev.target.dataset.w) setWeight(ev.target);
   else if (ev.target.dataset && ev.target.dataset.edit) editField(ev.target);
   else if (ev.target.id === 'ftpIn') {
