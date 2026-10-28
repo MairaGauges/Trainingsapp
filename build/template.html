@@ -943,7 +943,7 @@ function dayRow(w, i, d, first, extra) {
   const done = garminDone(w, s, i);
   const sid = sessionIdForDay(s, i), ps = sid ? planSession(sid) : null, manual = manualDone(w, s, i);
   const title = ps ? ps.name : s.title;
-  const detail = ps && ps.exercises.length ? ps.exercises.map(e => esc(e.name) + (e.sets ? ' ' + e.sets + '×' + esc(e.reps || '') : '')).join(' · ') : s.detail;
+  const detail = ps ? '' : s.detail;   // Kraft: in der Woche nur der Name, die Übungen stehen im Tab Kraft
   const isOn = !!(done.length || manual);
   // Runder Haken vor dem Titel: von Hand abhaken; von Garmin erkannte Einheiten sind fest abgehakt
   const chk = s.sport ? `<button class="dchk${isOn ? ' on' : ''}" data-ddone="${i}" data-wn="${w.n}" aria-pressed="${isOn}"${done.length ? ' disabled title="Von Garmin erkannt"' : ''} aria-label="${esc(title)} am ${DOW[d]} ${done.length ? 'von Garmin als erledigt erkannt' : isOn ? 'nicht mehr als erledigt markieren' : 'als erledigt abhaken'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>` : '';
@@ -974,7 +974,7 @@ function dayRow(w, i, d, first, extra) {
   return `<div class="${cls}${isOn ? ' done' : ''}" style="--c:${s.sport ? col : 'transparent'}">
     ${dcell}
     <div><div class="t">${chk || `<i class="dot" style="--c:${col}"></i>`}<span class="ttl">${esc(title)}</span>${s.tag ? `<span class="chip ${tagCls}">${esc(s.tag)}</span>` : ''}${s.opt ? '<span class="chip opt">optional</span>' : ''}${moved}</div>
-      <div class="x">${detail}</div>${wf}${extraTxt}${s.stabi ? stabiRow(w) : ''}</div>
+      ${detail ? `<div class="x">${detail}</div>` : ''}${wf}${extraTxt}${s.stabi ? stabiRow(w) : ''}</div>
     ${st}</div>`;
 }
 // Alle Tage der Woche, mit verschobenen Einheiten; ein Tag kann mehrere oder keine Einheit haben
@@ -1666,10 +1666,8 @@ const unitOf = ps => (ps && ps.unit != null ? ps.unit : 'kg');
 function stabiDone(w) { const lg = Store.slogs[logKey(w.n, 's3')]; return !!(lg && lg.done); }
 function stabiRow(w) {
   const ps = planSession('s3'), on = stabiDone(w);
-  const list = !ps ? 'Noch kein Stabi-Plan. Lege ihn im Tab Kraft an.'
-    : ps.exercises.length ? ps.exercises.map(e => esc(e.name) + (e.sets ? ' ' + e.sets + '×' + esc(e.reps || '') : '')).join(' · ') : 'Noch keine Übungen.';
   const chk = ps ? `<button class="dchk${on ? ' on' : ''}" data-sdone="${logKey(w.n, 's3')}" data-wn="${w.n}" data-sid="s3" aria-pressed="${on}" aria-label="${esc(ps.name)} ${on ? 'nicht mehr als erledigt markieren' : 'als erledigt abhaken'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>` : `<i class="dot" style="--c:var(--s-kraft)"></i>`;
-  return `<div class="sub${on ? ' done' : ''}"><div class="t">${chk}<span class="ttl">${esc(ps ? ps.name : 'Stabi-Block')}</span><span class="chip">nach der Fahrt</span></div><div class="x">${list}</div></div>`;
+  return `<div class="sub${on ? ' done' : ''}"><div class="t">${chk}<span class="ttl">${esc(ps ? ps.name : 'Stabi-Block')}</span><span class="chip">nach der Fahrt</span></div>${ps ? '' : '<div class="x">Noch kein Stabi-Plan. Lege ihn im Tab Kraft an.</div>'}</div>`;
 }
 const sessionIdForDay = (s, i) => s.type === 'kraft' ? (i === 2 ? 's1' : 's2') : null;
 const planSession = sid => Store.splan && Store.splan.sessions ? Store.splan.sessions.find(x => x.id === sid) : null;
