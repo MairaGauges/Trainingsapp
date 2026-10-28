@@ -10,7 +10,7 @@ phases = []
 
 phases.append(('Phase 1: Grundlage (2.11. – 13.12.)', [
     (1, '2.11.', 1, '60 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', '60 min Z2 (115–140 W) durchgehend', ''),
-    (2, '9.11.', 1, '60 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', '75 min Z2 durchgehend', ''),
+    (2, '9.11.', 1, "45 min locker mit 3×1' @ 175 W, <b>Pause 2' @ 110 W</b>: Beine frisch halten für den FTP-Test am Dienstag.", '75 min Z2 durchgehend', ''),
     (3, '16.11.', 1, '60 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', '80 min Z2 durchgehend', ''),
     (4, '23.11.', 1, '45 min ganz locker, Z1–Z2 (100–130 W). Optional.', "60 min: 10' einfahren, 2×8' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
     (5, '30.11.', 1, '60 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', '90 min Z2 durchgehend', ''),

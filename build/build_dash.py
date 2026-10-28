@@ -63,17 +63,19 @@ for n in range(1, 27):
     deload_note = " Entlastung: gleiche Gewichte, nur 2 Sätze." if kind == "deload" else ""
     if n < 26:
         a_txt, b_txt, _ = rows[n]
-        a_tag = "Test" if kind == "test" else "locker" if kind == "deload" else "Z2"
+        a_tag = "Test" if kind == "test" else "locker" if kind == "deload" or n == 2 else "Z2"
         a_note = " Empfohlen, damit die Zonen stimmen. Danach am Dienstag beim Spinning nicht voll gehen." if kind == "test" else ""
         S[0] = dict(type="A", sport="rad", title="Rolle A", slot="Rolle A", detail=a_txt + a_note, tag=a_tag, opt=True, file=files.get("A"), min=mins.get(files.get("A")))
         S[1] = dict(type="spin", sport="rad", title="Spinning", detail="Intervallkurs, 60 min. Die harte Einheit der Woche.", tag="hart")
+        if n == 2:
+            S[1] = dict(type="spin", sport="rad", title="Spinning · FTP-Test", detail="FTP-Test im Spinningkurs, am besten 20 min so gleichmäßig hart wie möglich (FTP = 95 % vom Schnitt). Davor 15 min einfahren mit 2–3 kurzen Steigerungen. Wenn das Rad Leistung misst, mit Garmin aufzeichnen, dann liest die App die FTP aus. Danach neue FTP oben und in MyWhoosh eintragen.", tag="Test")
         S[2] = dict(type="kraft", sport="kraft", title="Kraft 1 · Beine und Ganzkörper", detail=KRAFT1[ph] + deload_note, tag="Beine")
         S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen", detail="Schwimmtraining, gute Entlastung für die Beine.", tag="locker")
         S[4] = dict(type="frei", title="Ruhetag", detail="Frei oder 15 min Mobility. Ruhe vor der langen Einheit am Samstag.", tag="frei")
         outdoor = (n == 23)
         S[5] = dict(type="B", sport="rad", title="Ausfahrt draußen" if outdoor else "Rolle B", slot="Rolle B", detail=b_txt, tag="lang", stabi=True, file=files.get("B"), min=mins.get(files.get("B")))
         S[6] = dict(type="kraft", sport="kraft", title="Kraft 2 · Oberkörper und Rumpf", detail=KRAFT2[ph] + deload_note, tag="Oberkörper")
-        note = {7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 21: "Samstag 2 h (Ausnahme)", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
+        note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 21: "Samstag 2 h (Ausnahme)", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
         note = (note + " · " if note else "") + "Spinning + Rolle B · Rolle A optional"
     else:
         def tp(day, tag):

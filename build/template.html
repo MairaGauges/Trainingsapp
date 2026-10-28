@@ -1822,6 +1822,13 @@ function analyzeSess(w, i, s, a) {
   const ld = loadOf(a, hrMax), plan = plannedTss(s);
   items.push(`Dauer ${fmtDur(a.dur)}${s.min ? ` (geplant ${s.min} min)` : ''} · Belastung ${Math.round(ld.tss)} TSS${ld.est ? ' (geschätzt)' : ''}${plan ? `, geplant ca. ${Math.round(plan)}` : ''}`);
   if (a.te) items.push(`Garmin-Trainingseffekt: aerob ${num(a.te, 1)} (${TE_LBL(a.te)})${a.ate ? `, anaerob ${num(a.ate, 1)} (${TE_LBL(a.ate)})` : ''}`);
+  if (s.type === 'spin' && s.tag === 'Test') {
+    const b20 = bestPower(a, 1200);
+    if (a.maxHr && hrMax) items.push(`Spitzenpuls ${a.maxHr} (${Math.round(a.maxHr / hrMax * 100)} % deines höchsten gemessenen Pulses)`);
+    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). Oben und in MyWhoosh eintragen.`; tone = 'ok'; }
+    else verdict = 'Keine Leistungsdaten in der Aufzeichnung. Trag die FTP vom Display des Spinning-Rads oben ein (95 % deines 20-min-Schnitts).';
+    return { verdict, tone, items };
+  }
   if (s.type === 'spin') {
     const z = spinZones(a, hrMax);
     if (z) items.push(`${Math.round(z.hi)} min im harten Bereich, ${Math.round(z.thr)} min an der Schwelle (nach ${z.by})`);

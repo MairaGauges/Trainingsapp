@@ -122,6 +122,13 @@ def AL(wk):
         [wu(10, 100, 120), st(30 * 60, 115, None, "Ganz locker"), cd(5, 110, 100)], 45)
 
 
+def APRE(wk):
+    """Montag vor einem FTP-Test: 45 min locker mit kurzen Öffnern, damit die Beine frisch sind."""
+    add(wk, "Mo", "A", "45min_locker_Oeffner", "45 min locker, 3x1' Öffner",
+        "Vor dem FTP-Test am Dienstag: 10' Einfahren, Z2 locker, 3x1' @ 175 W mit 2' Pause @ 110 W, 5' Ausfahren. Nicht mehr.",
+        [wu(10), FILL] + reps(3, 60, 175, 120, 110) + [cd(5, 110, 100)], 45)
+
+
 def TEST(wk):
     steps = [wu(15), st(60, 200, None, "Aktivierung 1/3: 200 W"), st(60, 110), st(60, 200, None, "Aktivierung 2/3: 200 W"),
              st(60, 110), st(60, 200, None, "Aktivierung 3/3: 200 W"), st(300, 110, None, "5 min locker vor dem Test"),
@@ -137,8 +144,9 @@ def B(wk, title, slug, desc, steps, total):
 
 
 # -------- Phase 1 (W1-6)
-for wk in (1, 2, 3, 5, 6):
+for wk in (1, 3, 5, 6):
     A(wk, 60)
+APRE(2)  # Dienstag W2: FTP-Test beim Spinning
 B(1, "60 min Z2", "60min_Z2", "60 min Z2, ca. 125 W.", [wu(10), FILL], 60)
 B(2, "75 min Z2", "75min_Z2", "75 min Z2, ca. 125 W.", [wu(10), FILL], 75)
 B(3, "80 min Z2", "80min_Z2", "80 min Z2, ca. 125 W.", [wu(10), FILL], 80)
