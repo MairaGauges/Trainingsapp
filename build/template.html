@@ -271,11 +271,11 @@ tr.selrow td{background:var(--accent-soft)}
 .ptabs button{flex:1 1 0;min-width:0;min-height:46px;font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:999px;cursor:pointer;line-height:1.2}
 .ptabs button small{display:block;font-weight:500;font-size:11px}
 .ptabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
-.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.pitem{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:14px;padding:4px 6px 4px 12px;transition:background .2s,opacity .2s}
-.pitem label{flex:1;display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;min-width:0}
-.pitem input{width:22px;height:22px;accent-color:var(--ok);margin:0;flex:none;cursor:pointer}
-.pitem.on{opacity:.5}
+.plist{margin:0;padding-left:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 24px}
+.plist li{padding:2px 0}
+.plist li::marker{color:var(--accent)}
+.pedit{display:flex;flex-direction:column;gap:6px}
+.pedit .row{display:flex;gap:6px;align-items:center}
 .padd{display:flex;gap:8px;margin-top:12px}
 .padd .fld{flex:1}
 #tabbar,#mbar{display:none}
@@ -286,7 +286,7 @@ button{touch-action:manipulation}
   body{-webkit-tap-highlight-color:transparent;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));overscroll-behavior-y:none}
   .wrap{padding-inline:12px;padding-block:12px 16px;gap:14px}
   body[data-view] #hero,body[data-view] #strip,body[data-view] #week,body[data-view] #strength,body[data-view] #garmin,body[data-view] #progress,body[data-view] #pack{display:none}
-  body[data-view=packen] #pack{display:flex}
+  body[data-view=woche] #pack{display:flex}
   body[data-view=fortschritt] #progress{display:flex}
   .tiles{grid-template-columns:1fr 1fr;gap:10px}
   .tile .v{font-size:26px}
@@ -311,7 +311,7 @@ button{touch-action:manipulation}
   .ftp input{font-size:26px;width:92px;min-height:44px}
   /* Wochenwahl oben */
   #mbar{display:flex;position:sticky;top:0;z-index:4;align-items:center;gap:8px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--line)}
-  body[data-view=plan] #mbar,body[data-view=garmin] #mbar,body[data-view=fortschritt] #mbar,body[data-view=packen] #mbar{display:none}
+  body[data-view=plan] #mbar,body[data-view=garmin] #mbar,body[data-view=fortschritt] #mbar{display:none}
   #mbar .step{flex:none;width:48px;height:44px;border:0;background:var(--panel);box-shadow:var(--shadow);border-radius:999px;font-family:var(--font-d);font-size:26px;line-height:1;color:var(--ink);cursor:pointer}
   #mbar .step[disabled]{opacity:.35}
   #mbar .mid{flex:1;min-width:0;white-space:nowrap;height:44px;border:0;background:none;text-align:center;font-family:var(--font-d);font-weight:600;font-size:21px;line-height:1.05;color:var(--ink);cursor:pointer}
@@ -320,7 +320,7 @@ button{touch-action:manipulation}
   .wk-head .nav{display:none}
   /* Tab-Leiste */
   #tabbar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--panel);background:color-mix(in srgb,var(--panel) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:999px;box-shadow:0 8px 28px rgba(34,48,58,.18);padding:6px}
-  #tabbar button{position:relative;flex:1;min-width:0;min-height:56px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--muted);font-size:10px;letter-spacing:-.02em;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
+  #tabbar button{position:relative;flex:1;min-width:0;min-height:56px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--muted);font-size:10.5px;letter-spacing:-.01em;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
   #tabbar button[aria-current=page]{color:var(--ink)}
   #tabbar button[aria-current=page] svg{background:var(--nav);color:var(--nav-ink);border-radius:999px;padding:6px;width:36px;height:36px;box-sizing:border-box}
   #tabbar svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -358,10 +358,10 @@ button{touch-action:manipulation}
   <header class="hero" id="hero"></header>
   <section class="card" id="strip" aria-label="Planübersicht"></section>
   <section id="week" class="main-grid"></section>
+  <section id="pack" aria-label="Packlisten"></section>
   <section id="strength"></section>
   <section id="progress" aria-label="Trainingsfortschritt"></section>
   <section id="garmin"></section>
-  <section id="pack" aria-label="Packlisten"></section>
 </div>
 <nav id="tabbar" aria-label="Ansichten"></nav>
 <div id="msg" class="toast" role="status" aria-live="polite" hidden></div>
@@ -1652,8 +1652,8 @@ let packTab = (() => { try { return localStorage.getItem('ef27.ptab') || 'gym'; 
 function packData() {
   if (!Store.pack || !Store.pack.lists) {
     let n = 0;
-    Store.pack = { lists: {}, checked: {} };
-    PACK_LISTS.forEach(([k]) => { Store.pack.lists[k] = PACK_DEFAULT[k].map(t => ({ id: 'p' + (n++), t })); Store.pack.checked[k] = {}; });
+    Store.pack = { lists: {} };
+    PACK_LISTS.forEach(([k]) => { Store.pack.lists[k] = PACK_DEFAULT[k].map(t => ({ id: 'p' + (n++), t })); });
   }
   return Store.pack;
 }
@@ -1665,20 +1665,18 @@ function renderPackSafe() {
   if (a && a.closest && a.closest('#pack') && a.tagName === 'INPUT' && a.type === 'text') return;   // nicht beim Tippen neu zeichnen
   renderPack();
 }
+let packEdit = false;
 function renderPack() {
   const el = $('#pack'); if (!el) return;
-  const P = packData(), list = P.lists[packTab] || [], chk = P.checked[packTab] || {};
-  const cnt = k => `${(P.lists[k] || []).filter(x => (P.checked[k] || {})[x.id]).length}/${(P.lists[k] || []).length}`;
-  const left = list.filter(x => !chk[x.id]).length;
-  el.innerHTML = `<div class="card-h" style="margin:0"><div class="wk-title"><h2>Packlisten</h2></div></div>
-    <div class="ptabs" role="group" aria-label="Packliste wählen">${PACK_LISTS.map(([k, n]) => `<button data-ptab="${k}" aria-pressed="${k === packTab}">${n}<small>${cnt(k)}</small></button>`).join('')}</div>
-    <div class="card"><div class="card-h"><h3>${esc((PACK_LISTS.find(x => x[0] === packTab) || [, ''])[1])}</h3>
-      <span class="muted">${list.length ? (left ? `noch ${left} ${left === 1 ? 'Sache' : 'Sachen'}` : 'Alles eingepackt ✓') : ''}</span></div>
-      <ul class="plist">${list.map(x => `<li class="pitem${chk[x.id] ? ' on' : ''}"><label><input type="checkbox" data-pchk="${esc(x.id)}"${chk[x.id] ? ' checked' : ''}><span>${esc(x.t)}</span></label>
-        <button class="x-btn" data-pdel="${esc(x.id)}" aria-label="${esc(x.t)} entfernen">✕</button></li>`).join('')}</ul>
-      <form class="padd" data-padd><input class="fld" type="text" name="t" maxlength="80" placeholder="Etwas hinzufügen …" aria-label="Neuer Gegenstand"><button class="btn sm">Hinzufügen</button></form>
-      <div style="margin-top:12px"><button class="btn ghost sm" data-action="p-reset"${Object.keys(chk).length ? '' : ' disabled'}>Liste zurücksetzen</button></div>
-    </div>`;
+  const P = packData(), list = P.lists[packTab] || [];
+  const body = packEdit
+    ? `<div class="pedit">${list.map(x => `<div class="row"><input class="fld" type="text" maxlength="80" data-pedit="${esc(x.id)}" value="${esc(x.t)}" aria-label="Gegenstand"><button class="x-btn" data-pdel="${esc(x.id)}" aria-label="${esc(x.t)} entfernen">✕</button></div>`).join('')}</div>
+       <form class="padd" data-padd><input class="fld" type="text" name="t" maxlength="80" placeholder="Etwas hinzufügen …" aria-label="Neuer Gegenstand"><button class="btn sm">Hinzufügen</button></form>`
+    : list.length ? `<ul class="plist">${list.map(x => `<li>${esc(x.t)}</li>`).join('')}</ul>` : '<p class="muted">Noch nichts auf der Liste. Tippe auf „Bearbeiten“.</p>';
+  el.innerHTML = `<div class="card">
+    <div class="card-h"><h3>Packliste</h3><button class="btn ghost sm" data-action="p-edit">${packEdit ? 'Fertig' : 'Bearbeiten'}</button></div>
+    <div class="ptabs" role="group" aria-label="Packliste wählen" style="margin-bottom:14px">${PACK_LISTS.map(([k, n]) => `<button data-ptab="${k}" aria-pressed="${k === packTab}">${n}</button>`).join('')}</div>
+    ${body}</div>`;
 }
 
 /* ---------- Handy-Ansicht ---------- */
@@ -1688,7 +1686,6 @@ const VIEWS = [
   ['workouts', 'Workouts', '<path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19.5h14"/>'],
   ['fortschritt', 'Fortschritt', '<path d="M4 17.5l5-5.5 4 3.5 7-8M15 7.5h5v5"/>'],
   ['garmin', 'Garmin', '<path d="M4 4.5V19.5H20M8 15l3-4.5 3 2 5-6"/>'],
-  ['packen', 'Packen', '<path d="M5 8.5h14l-1 11.5H6z"/><path d="M9 8.5V6.5a3 3 0 0 1 6 0v2"/>'],
   ['plan', 'Plan', '<rect x="4" y="4" width="6.5" height="6.5" rx="1.3"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.3"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.3"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.3"/>']
 ];
 let view = 'woche';
@@ -2152,7 +2149,6 @@ document.addEventListener('click', ev => {
   if (pdl) {
     const P = packData(), id = pdl.dataset.pdel;
     P.lists[packTab] = (P.lists[packTab] || []).filter(x => x.id !== id);
-    if (P.checked[packTab]) delete P.checked[packTab][id];
     persistPack(); renderPack(); return;
   }
   const stb = ev.target.closest('[data-stab]');
@@ -2179,7 +2175,7 @@ document.addEventListener('click', ev => {
     else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
     else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
     else if (a === 'logout') window.ef27Logout();
-    else if (a === 'p-reset') { const P = packData(); P.checked[packTab] = {}; persistPack(); renderPack(); toast('Liste zurückgesetzt.'); }
+    else if (a === 'p-edit') { packEdit = !packEdit; renderPack(); const b = $('#pack [data-action="p-edit"]'); if (b) b.focus(); }
     else if (a === 'ftp-take') { const v = Number(act.dataset.v); if (v >= 80 && v <= 500) storeFtp(v).then(() => { render(); toast('FTP auf ' + v + ' W gesetzt. In MyWhoosh auch eintragen.'); }); }
     else if (a === 'zip-all') saveZip('MyWhoosh_Alle_Workouts.zip', Object.keys(DATA.workouts).sort());
     else if (a === 'stabi-create' && Store.splan && !planSession('s3')) {
@@ -2242,12 +2238,9 @@ document.addEventListener('change', ev => {
   if (ev.target.id === 'fileIn' && ev.target.files && ev.target.files.length) { const fl = Array.from(ev.target.files); ev.target.value = ''; importFiles(fl); }
   else if (ev.target.dataset && ev.target.dataset.move) { buzz(); moveSession(Number(ev.target.dataset.wn), Number(ev.target.dataset.move), Number(ev.target.value)); }
   else if (ev.target.dataset && ev.target.dataset.exd) { buzz(); toggleExDone(ev.target); }
-  else if (ev.target.dataset && ev.target.dataset.pchk) {
-    buzz();
-    const P = packData(), c = P.checked[packTab] || (P.checked[packTab] = {}), id = ev.target.dataset.pchk;
-    if (ev.target.checked) c[id] = true; else delete c[id];
-    persistPack(); renderPack();
-    const nb = $('#pack [data-pchk="' + id + '"]'); if (nb) nb.focus();
+  else if (ev.target.dataset && ev.target.dataset.pedit) {
+    const it = (packData().lists[packTab] || []).find(x => x.id === ev.target.dataset.pedit);
+    if (it) { const t = ev.target.value.trim(); if (t) { it.t = t.slice(0, 80); persistPack(); } else ev.target.value = it.t; }
   }
   else if (ev.target.dataset && ev.target.dataset.w) setWeight(ev.target);
   else if (ev.target.dataset && ev.target.dataset.edit) editField(ev.target);
