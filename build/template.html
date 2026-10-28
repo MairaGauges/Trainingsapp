@@ -1929,12 +1929,16 @@ function lastFor(ex, weekN) {
   }
   return best;
 }
-// "20×10 / 20×10 / 22,5×8 kg": Gewicht × Wiederholungen je Satz
+// "10×20 kg / 10×20 kg / 8×22,5 kg": Wiederholungen × Gewicht je Satz
 function fmtSets(w, r, unit) {
   if (!r || !r.some(x => String(x).trim())) return fmtW(w, unit);
   const n = Math.max(w.length, r.length), out = [];
-  for (let k = 0; k < n; k++) { const a = String(w[k] || '').trim(), b = String(r[k] || '').trim(); if (a || b) out.push((a || '–') + (b ? '×' + b : '')); }
-  return out.join(' / ') + (unit && w.some(x => String(x).trim()) ? ' ' + unit : '');
+  for (let k = 0; k < n; k++) {
+    const a = String(w[k] || '').trim(), b = String(r[k] || '').trim();
+    const wt = a ? a + (unit ? ' ' + unit : '') : '';
+    if (a && b) out.push(b + '×' + wt); else if (a) out.push(wt); else if (b) out.push(b + ' Wdh.');
+  }
+  return out.join(' / ');
 }
 function fmtW(arr, unit) {
   const v = arr.map(x => String(x).trim()).filter(Boolean);
