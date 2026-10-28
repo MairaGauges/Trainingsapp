@@ -37,6 +37,44 @@ for path in sorted(glob.glob(os.path.join(ZWO, "*.zwo"))):
         tot += int(e.get("Duration"))
     mins[fn] = round(tot / 60)
 
+def benefit(fn):
+    """Kurzer Satz, was eine Rolleneinheit bringt, abgeleitet aus den Schritten der .zwo-Datei."""
+    if not fn:
+        return None
+    root = ET.fromstring(workouts[fn]).find("workout")
+    steady = [e for e in root if e.tag == "SteadyState"]
+    blocks = [e for e in steady if int(e.get("Duration")) >= 120 and float(e.get("Power")) >= .76]
+    top = max((float(e.get("Power")) for e in blocks), default=0)
+    cads = [int(e.get("Cadence")) for e in steady if e.get("Cadence")]
+    if fn.startswith("Taper"):
+        return "Frische fürs Rennen: kurze Reize halten die Beine wach, ohne zu ermüden."
+    if any(e.tag == "FreeRide" for e in root):
+        return "Deine aktuelle FTP, damit alle Wattvorgaben und Zonen wieder stimmen."
+    if "Oeffner" in fn:
+        return "Lockere Beine mit kurzen Öffnern: du gehst frisch, aber wach in den Test."
+    if "locker" in fn:
+        return "Aktive Erholung: Durchblutung und lockere Beine, die Entlastungswoche wirkt besser."
+    if any(c >= 95 for c in cads) and not blocks:
+        return "Grundlage plus runder Tritt: hohe Trittfrequenz schult die Koordination und spart später Kraft."
+    if not blocks:
+        if "_A_" in fn:
+            return "Grundlagenausdauer: mehr Mitochondrien und bessere Fettverbrennung, ohne die Beine fürs Spinning zu ermüden."
+        return "Ausdauer für lange Fahrten: die Basis, um 92 km ohne Einbruch durchzufahren."
+    if "Entlastungswoche" in (ET.fromstring(workouts[fn]).findtext("description") or ""):
+        return "Kurze Blöcke in der Entlastungswoche: die Form bleibt, während sich der Körper erholt."
+    extra = " Niedrige Kadenz trainiert die Kraftausdauer für die Anstiege." if any(c <= 70 for c in cads) else ""
+    long_ = int(sum(int(e.get("Duration")) for e in root) / 60) >= 110
+    if top >= .945:
+        base = "Schwellenleistung: genau die Belastung der langen Anstiege (Feldberg, Mammolshain)."
+    elif top >= .85:
+        base = "Sweet Spot: hebt die FTP bei überschaubarer Ermüdung, der effizienteste Bereich fürs Radmarathon-Training."
+    else:
+        base = "Tempohärte: längere Zeit zügig fahren, wie im Feld auf flachen Abschnitten."
+    if long_:
+        base += " Am Ende einer langen Fahrt: übt Leistung unter Ermüdung und die Verpflegung."
+    return base + extra
+
+
 KRAFT1 = {
     1: "Kniebeuge, Rumänisches Kreuzheben, Ausfallschritte, Hip Thrust: 3–4×6–10, moderat bis schwer. <b>Satzpause 90–120 s</b>",
     2: "Wie Phase 1, Gewichte steigern: 3×5–8. <b>Satzpause 2–3 min</b>",
@@ -65,7 +103,7 @@ for n in range(1, 27):
         a_txt, b_txt, _ = rows[n]
         a_tag = "Test" if kind == "test" else "locker" if kind == "deload" or n == 2 else "Z2"
         a_note = " Empfohlen, damit die Zonen stimmen. Danach am Dienstag beim Spinning nicht voll gehen." if kind == "test" else ""
-        S[0] = dict(type="A", sport="rad", title="Rolle A", slot="Rolle A", detail=a_txt + a_note, tag=a_tag, opt=True, file=files.get("A"), min=mins.get(files.get("A")))
+        S[0] = dict(type="A", sport="rad", title="Rolle A", slot="Rolle A", detail=a_txt + a_note, why=benefit(files.get("A")), tag=a_tag, opt=True, file=files.get("A"), min=mins.get(files.get("A")))
         S[1] = dict(type="spin", sport="rad", title="Spinning", detail="Intervallkurs, 60 min. Die harte Einheit der Woche.", tag="hart")
         if n == 2:
             S[1] = dict(type="spin", sport="rad", title="Spinning · FTP-Test", detail="FTP-Test im Spinningkurs, am besten 20 min so gleichmäßig hart wie möglich (FTP = 95 % vom Schnitt). Davor 15 min einfahren mit 2–3 kurzen Steigerungen. Wenn das Rad Leistung misst, mit Garmin aufzeichnen, dann liest die App die FTP aus. Danach neue FTP oben und in MyWhoosh eintragen.", tag="Test")
@@ -73,7 +111,8 @@ for n in range(1, 27):
         S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen", detail="Schwimmtraining, gute Entlastung für die Beine.", tag="locker")
         S[4] = dict(type="frei", title="Ruhetag", detail="Frei oder 15 min Mobility. Ruhe vor der langen Einheit am Samstag.", tag="frei")
         outdoor = (n == 23)
-        S[5] = dict(type="B", sport="rad", title="Ausfahrt draußen" if outdoor else "Rolle B", slot="Rolle B", detail=b_txt, tag="lang", stabi=True, file=files.get("B"), min=mins.get(files.get("B")))
+        S[5] = dict(type="B", sport="rad", title="Ausfahrt draußen" if outdoor else "Rolle B", slot="Rolle B", detail=b_txt, tag="lang", stabi=True, file=files.get("B"), min=mins.get(files.get("B")),
+                    why="Höhenmeter, Radbeherrschung und Verpflegung unter echten Bedingungen: die Generalprobe vor dem Trainingslager." if outdoor else benefit(files.get("B")))
         S[6] = dict(type="kraft", sport="kraft", title="Kraft 2 · Oberkörper und Rumpf", detail=KRAFT2[ph] + deload_note, tag="Oberkörper")
         note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 21: "Samstag 2 h (Ausnahme)", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
         note = (note + " · " if note else "") + "Spinning + Rolle B · Rolle A optional"
@@ -106,6 +145,9 @@ for n in range(1, 27):
         S[5] = dict(type="frei", title="Rückreise", detail="Frei. Wer mag: 30–45 min ganz locker.", tag="frei")
         S[6] = dict(type="frei", title="Erholung", detail="Frei. Kraft entfällt in dieser Woche.", tag="frei")
         note = "Trainingslager So 18.4. – Fr 23.4. · Ruhepuls morgens 5–7 Schläge über normal: an dem Tag nur 1 h locker"
+    for x in S:
+        if x and x.get("file") and "why" not in x:
+            x["why"] = benefit(x["file"])
     weeks.append(dict(n=n, start=start.isoformat(), phase=ph, phaseName=PHASE_NAMES[ph], kind=kind, note=note, camp=camp, sessions=S))
 
 data = dict(weeks=weeks, workouts=workouts, titles=titles, race="2027-05-01", ftp=193)
