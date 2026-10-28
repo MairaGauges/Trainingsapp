@@ -1920,7 +1920,12 @@ function lastFor(ex, weekN) {
     const e = lg.ex[ex.id] || (nm ? Object.values(lg.ex).find(x => x && x.n && x.n.trim().toLowerCase() === nm) : null);
     const has = a => a && a.some(v => String(v).trim());
     if (!e || !(has(e.w) || has(e.r))) continue;
-    if (!best || lg.week > best.week) best = { week: lg.week, w: e.w || [], r: e.r || [] };
+    if (!best || lg.week > best.week) {
+      // Abgehakt und Wiederholungen leer gelassen: die geplante Anzahl gilt als geschafft
+      const planR = (String(ex.reps || '').match(/\d+/) || [''])[0], w = e.w || [];
+      const r = e.d && planR ? Array.from({ length: Math.max(w.length, (e.r || []).length, ex.sets || 0) }, (_, k) => String((e.r || [])[k] || '').trim() || (String(w[k] || '').trim() || !w.length ? planR : '')) : (e.r || []);
+      best = { week: lg.week, w, r };
+    }
   }
   return best;
 }
