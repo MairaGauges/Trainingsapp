@@ -106,7 +106,7 @@ button,input{font:inherit;color:inherit}
 .prog{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--muted);margin-bottom:6px}
 .bar{flex:1 1 120px;height:6px;border-radius:3px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;max-width:220px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--ok))}
-.day{display:grid;grid-template-columns:70px minmax(0,1fr) 150px;gap:4px 14px;padding:12px 8px 12px 12px;border-top:1px solid var(--line);box-shadow:inset 4px 0 0 var(--c,transparent);transition:background .2s}
+.day{display:grid;grid-template-columns:70px minmax(0,1fr) 150px;gap:4px 14px;padding:12px 8px;border-top:1px solid var(--line);transition:background .2s}
 .day.done{background:var(--panel2)}
 .day.done > div:nth-child(2) > :not(.sub),.sub.done{opacity:.55}
 .day.done > div > .t .ttl,.sub.done .t .ttl{text-decoration:line-through;text-decoration-thickness:1px}
@@ -208,11 +208,19 @@ tr.selrow td{background:var(--accent-soft)}
 .sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px}
 .sets input{width:66px;text-align:right;font-variant-numeric:tabular-nums}
 .sets .u{font-size:13px;color:var(--muted)}
+.sets2{display:grid;grid-template-columns:44px repeat(var(--n),minmax(0,1fr));gap:6px;align-items:center;margin-top:7px;max-width:420px}
+.sets2 .sl{font-size:12px;color:var(--muted);font-weight:600}
+.sets2 .sh{font-size:11px;color:var(--muted);text-align:center;letter-spacing:.04em}
+.sets2 input{width:100%;text-align:center;font-variant-numeric:tabular-nums}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}
 .exchk{display:inline-flex;align-items:center;gap:10px;cursor:pointer;min-width:0}
 .exchk input{width:20px;height:20px;accent-color:var(--ok);margin:0;flex:none;cursor:pointer}
-.ex.done .ex-h b{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
-.ex.done .sets,.ex.done .hint,.card.sdone .ex{opacity:.5}
+.ex{transition:background .2s}
+.ex.done{background:var(--accent-soft);border-radius:10px;border-top-color:transparent;margin-inline:-8px;padding-inline:8px}
+.ex.done + .ex{border-top-color:transparent}
+.ex.done .ex-h b{color:var(--muted)}
+.ex.done .sets,.ex.done .sets2,.ex.done .hint{opacity:.55}
+.card.sdone .ex:not(.done){opacity:.6}
 .card.sdone{background:var(--panel2)}
 .card[data-scard]{border-top:3px solid var(--s-kraft)}
 .ord{display:flex;flex-direction:column}
@@ -305,7 +313,7 @@ button{touch-action:manipulation}
   .wk{min-width:46px;height:48px}
   .cells{gap:6px}
   .fld{font-size:16px;min-height:44px;padding:8px 10px}
-  .day{padding:14px 6px 14px 10px}
+  .day{padding:14px 6px}
   .dchk{width:30px;height:30px}
   .hero{padding:16px 18px;border-radius:16px}
   .ex{padding:14px 0}
@@ -315,6 +323,8 @@ button{touch-action:manipulation}
   .sets{gap:8px;flex-wrap:nowrap}
   .sets input{flex:1 1 0;width:auto;min-width:0;height:48px;font-size:18px;text-align:center}
   .sets .u{flex:none}
+  .sets2{gap:8px;max-width:none}
+  .sets2 input{height:46px;font-size:18px}
   .erow{grid-template-columns:40px minmax(0,1fr) 52px 76px 40px}
   .ord .x-btn{padding:2px 10px;font-size:18px}
   .x-btn{font-size:20px;padding:10px 12px}
@@ -1897,10 +1907,18 @@ function lastFor(ex, weekN) {
   for (const lg of Object.values(Store.slogs)) {
     if (!lg || !lg.ex || !(lg.week < weekN)) continue;
     const e = lg.ex[ex.id] || (nm ? Object.values(lg.ex).find(x => x && x.n && x.n.trim().toLowerCase() === nm) : null);
-    if (!e || !e.w || !e.w.some(v => String(v).trim())) continue;
-    if (!best || lg.week > best.week) best = { week: lg.week, w: e.w };
+    const has = a => a && a.some(v => String(v).trim());
+    if (!e || !(has(e.w) || has(e.r))) continue;
+    if (!best || lg.week > best.week) best = { week: lg.week, w: e.w || [], r: e.r || [] };
   }
   return best;
+}
+// "20×10 / 20×10 / 22,5×8 kg": Gewicht × Wiederholungen je Satz
+function fmtSets(w, r, unit) {
+  if (!r || !r.some(x => String(x).trim())) return fmtW(w, unit);
+  const n = Math.max(w.length, r.length), out = [];
+  for (let k = 0; k < n; k++) { const a = String(w[k] || '').trim(), b = String(r[k] || '').trim(); if (a || b) out.push((a || '–') + (b ? '×' + b : '')); }
+  return out.join(' / ') + (unit && w.some(x => String(x).trim()) ? ' ' + unit : '');
 }
 function fmtW(arr, unit) {
   const v = arr.map(x => String(x).trim()).filter(Boolean);
@@ -1934,9 +1952,10 @@ function setWeight(t) {
   if (!lg.ex) lg.ex = {};
   const e = lg.ex[ex.id] || (lg.ex[ex.id] = { n: ex.name, w: [] });
   e.n = ex.name;
-  const k = Number(t.dataset.set);
-  while (e.w.length <= k) e.w.push('');
-  e.w[k] = t.value.trim();
+  const k = Number(t.dataset.set), f = t.dataset.kind === 'r' ? 'r' : 'w';
+  const arr = e[f] || (e[f] = []);
+  while (arr.length <= k) arr.push('');
+  arr[k] = t.value.trim();
   persistLog(key);
 }
 function editField(t) {
@@ -1997,12 +2016,17 @@ function renderStrength() {
       body = `<div class="empty">Noch keine Übungen. Tippe oben auf „Plan bearbeiten“.</div>`;
     } else {
       body = ps.exercises.map(ex => {
-        const cur = (lg.ex && lg.ex[ex.id] && lg.ex[ex.id].w) || [], last = lastFor(ex, w.n), n = ex.sets || 3, exd = !!(lg.ex && lg.ex[ex.id] && lg.ex[ex.id].d);
-        const inputs = Array.from({ length: n }, (_, k) =>
-          `<input class="fld" type="text" inputmode="decimal" autocomplete="off" aria-label="${esc(ex.name)}, Satz ${k + 1}" data-w="${key}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-set="${k}" value="${esc(cur[k] || '')}" placeholder="${last && last.w[k] ? esc(last.w[k]) : ''}">`).join('');
-        const hint = last ? `${last.week === w.n - 1 ? 'Letzte Woche' : 'Zuletzt (Woche ' + last.week + ')'}: ${esc(fmtW(last.w, unitOf(ps)))}` : 'Noch keine Werte aus früheren Wochen.';
+        const le = (lg.ex && lg.ex[ex.id]) || {}, cur = le.w || [], curR = le.r || [], last = lastFor(ex, w.n), n = ex.sets || 3, exd = !!le.d;
+        const unit = unitOf(ps), withReps = /kg|lb/i.test(unit);   // bei Gewichten auch die geschafften Wiederholungen
+        const planR = (String(ex.reps || '').match(/\d+/) || [''])[0];
+        const inp = (k, kind) => `<input class="fld" type="text" inputmode="${kind === 'r' ? 'numeric' : 'decimal'}" autocomplete="off" aria-label="${esc(ex.name)}, Satz ${k + 1}, ${kind === 'r' ? 'Wiederholungen' : esc(unit || 'Wert')}" data-w="${key}" data-kind="${kind}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-set="${k}" value="${esc((kind === 'r' ? curR : cur)[k] || '')}" placeholder="${esc(kind === 'r' ? (last && last.r[k]) || planR : (last && last.w[k]) || '')}">`;
+        const ks = Array.from({ length: n }, (_, k) => k);
+        const inputs = withReps
+          ? `<div class="sets2" style="--n:${n}"><span></span>${ks.map(k => `<span class="sh">Satz ${k + 1}</span>`).join('')}<span class="sl">${esc(unit)}</span>${ks.map(k => inp(k, 'w')).join('')}<span class="sl">Wdh.</span>${ks.map(k => inp(k, 'r')).join('')}</div>`
+          : `<div class="sets">${ks.map(k => inp(k, 'w')).join('')}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div>`;
+        const hint = last ? `${last.week === w.n - 1 ? 'Letzte Woche' : 'Zuletzt (Woche ' + last.week + ')'}: ${esc(fmtSets(last.w, last.r, unit))}` : 'Noch keine Werte aus früheren Wochen.';
         return `<div class="ex${exd ? ' done' : ''}"><div class="ex-h"><label class="exchk"><input type="checkbox" data-exd="${key}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-wn="${w.n}"${exd ? ' checked' : ''} aria-label="${esc(ex.name)} erledigt"><b>${esc(ex.name || 'Ohne Namen')}</b></label><span class="muted tab">${n}×${esc(ex.reps || '')}</span></div>
-          <div class="sets">${inputs}${unitOf(ps) ? `<span class="u">${esc(unitOf(ps))}</span>` : ''}</div><div class="hint">${hint}</div></div>`;
+          ${inputs}<div class="hint">${hint}</div></div>`;
       }).join('');
     }
     const head2 = editS
