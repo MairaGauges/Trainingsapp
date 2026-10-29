@@ -96,7 +96,8 @@ button,input{font:inherit;color:inherit}
 .wk{position:relative;min-width:40px;height:42px;border:0;background:var(--soft);border-radius:999px;font-family:var(--font-d);font-weight:600;font-size:15px;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
 .wk.k-deload{background:var(--k-deload)} .wk.k-test{background:var(--k-test)} .wk.k-taper{background:var(--k-taper)}
 .wk.sel{background:var(--accent);color:var(--accent-ink);box-shadow:0 4px 12px rgba(240,100,90,.35)}
-.wk.cur::after{content:"";position:absolute;left:8px;right:8px;bottom:4px;height:3px;border-radius:2px;background:var(--ink)}
+.wk.cur{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+.wk.cur.sel{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink),0 4px 12px rgba(240,100,90,.35)}
 .wk.has::before{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--ok)}
 
 /* Woche */
@@ -944,7 +945,7 @@ function renderStrip() {
         <span><i class="sw" style="--c:var(--k-deload)"></i>Entlastung</span>
         <span><i class="sw" style="--c:var(--k-test)"></i>FTP-Test</span>
         <span><i class="sw" style="--c:var(--k-taper)"></i>Taper</span>
-        <span><i class="dot" style="--c:var(--ink);width:14px;height:3px;border-radius:2px"></i>aktuelle Woche</span>
+        <span><i class="dot" style="background:transparent;width:12px;height:12px;box-shadow:inset 0 0 0 2px var(--ink)"></i>aktuelle Woche</span>
         <span><i class="dot" style="--c:var(--ok)"></i>Einheiten erfasst</span>
       </div></div>
     <div class="groups">${groups.map(g => `<div class="grp"><div class="grp-h"><span>${g[0]}</span><span>W${g[1]}${g[2] > g[1] ? '–' + g[2] : ''}</span></div><div class="cells">${W.slice(g[1] - 1, g[2]).map((w, k) => cell(w, g[1] - 1 + k)).join('')}</div></div>`).join('')}</div>`;
