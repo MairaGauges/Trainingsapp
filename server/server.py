@@ -152,11 +152,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, d) if d is not None else self._json(404, {"error": "nicht gefunden"})
         if p == "/api/garmin/status":
             return self._json(200, {"configured": garmin.configured()})
+        if p == "/api/garmin/profile":
+            return self._json(200, garmin.profile())
         if p == "/api/garmin/diag":
             return self._json(200, garmin.diag())
         if p == "/api/garmin/activities":
             try:
-                days = max(1, min(int((q.get("days") or ["14"])[0]), 90))
+                days = max(1, min(int((q.get("days") or ["14"])[0]), 730))
                 return self._json(200, {"activities": garmin.activities(days)})
             except (GarminError, ValueError) as e:
                 return self._json(502, {"error": str(e)})

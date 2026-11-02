@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -15,6 +16,33 @@ TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"
 
 class GarminError(Exception):
     pass
+
+
+# Kennzahlen je Aktivität aus Garmins Liste (VO2max-Schätzung, Trainingseffekt, Zeit in Pulszonen)
+ACT_KEYS = re.compile(r"^(vO2MaxValue|aerobicTrainingEffect|anaerobicTrainingEffect|trainingEffectLabel|activityTrainingLoad|averageHR|maxHR|hrTimeInZone_\d|startTimeGMT)$")
+# Persönliches, das die App nicht braucht, verlässt den Server nie
+DROP = re.compile(r"birth|weight|height|email|name|gender|location|phone|address|handedness|picture|image|locale|timeZone|userId|profileId|displayName", re.I)
+DAILY_KEYS = ("calendarDate", "restingHeartRate", "minHeartRate", "maxHeartRate", "lastSevenDaysAvgRestingHeartRate",
+              "averageStressLevel", "bodyBatteryHighestValue", "bodyBatteryLowestValue", "sleepingSeconds")
+
+
+def scrub(x, depth=0):
+    """Rekursiv alle Felder ohne persönliche Angaben behalten (Tiefe und Listen begrenzt)."""
+    if depth > 6:
+        return None
+    if isinstance(x, dict):
+        return {k: scrub(v, depth + 1) for k, v in x.items() if not DROP.search(k)}
+    if isinstance(x, list):
+        return [scrub(v, depth + 1) for v in x[:400]]
+    return x
+
+
+def as_list(j):
+    if isinstance(j, list):
+        return j
+    if isinstance(j, dict):
+        return next((v for v in j.values() if isinstance(v, list)), [])
+    return []
 
 
 def jwt_exp(tok):
@@ -118,7 +146,7 @@ class Garmin:
         start = (date.today() - timedelta(days=days)).isoformat()
         end = (date.today() + timedelta(days=1)).isoformat()
         out, offset = [], 0
-        while offset < 300:
+        while offset < 2000:
             q = urllib.parse.urlencode({"start": offset, "limit": 50, "startDate": start, "endDate": end})
             body, _ = self.get("/activitylist-service/activities/search/activities?" + q)
             try:
@@ -133,10 +161,39 @@ class Garmin:
                 t = it.get("activityType") or {}
                 out.append({"id": str(aid), "name": it.get("activityName") or "",
                             "start": it.get("startTimeLocal") or it.get("startTimeGMT") or "",
-                            "type": (t.get("typeKey") if isinstance(t, dict) else str(t)) or ""})
+                            "type": (t.get("typeKey") if isinstance(t, dict) else str(t)) or "",
+                            "g": {k: v for k, v in it.items() if ACT_KEYS.match(k) and v is not None}})
             if len(items) < 50:
                 break
             offset += 50
+        return out
+
+    def _json(self, path):
+        body, _ = self.get(path)
+        try:
+            return json.loads(body)
+        except ValueError:
+            raise GarminError("Antwort ist kein JSON")
+
+    def profile(self, days=120):
+        """Pulszonen, Profilwerte (VO2max, Laktatschwelle), HRV, Ruhepuls-Verlauf, Fitnessalter.
+        Jeder Teil einzeln: fällt einer aus, kommen die anderen trotzdem."""
+        today = date.today()
+        start = today - timedelta(days=days)
+        out = {"fetched": today.isoformat(), "errors": {}}
+
+        def grab(name, path, fn=scrub):
+            try:
+                out[name] = fn(self._json(path))
+            except GarminError as e:
+                out["errors"][name] = str(e)
+
+        grab("zones", "/biometric-service/heartRateZones/v2")
+        grab("settings", "/userprofile-service/userprofile/settings")
+        grab("fitnessAge", "/fitnessage-service/fitnessage/v2/%s" % today)
+        grab("hrv", "/hrv-service/hrv/daily/%s/%s" % (start, today))
+        grab("daily", "/usersummary-service/v2/dailysummaries?startDate=%s&endDate=%s" % (start, today),
+             lambda j: [{k: d.get(k) for k in DAILY_KEYS if d.get(k) is not None} for d in as_list(j) if isinstance(d, dict)])
         return out
 
     def file(self, activity_id):

@@ -145,6 +145,8 @@ button,input{font:inherit;color:inherit}
 .tile .v{font-family:var(--font-b);font-weight:600;font-size:30px;line-height:1.1}
 .tile .s{font-size:13px;color:var(--muted)}
 .tile .btn{margin-top:6px;align-self:flex-start}
+.spark{display:block;width:100%;height:40px;margin-top:6px}
+.card .tiles .tile{background:var(--panel2);box-shadow:none}
 .insights{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
 .lkey{display:inline-block;width:16px;height:2px;border-radius:1px;background:var(--c);vertical-align:middle}
 .pdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);vertical-align:middle}
@@ -213,10 +215,17 @@ tr.selrow td{background:var(--accent-soft)}
 .sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px}
 .sets input{width:66px;text-align:right;font-variant-numeric:tabular-nums}
 .sets .u{font-size:13px;color:var(--muted)}
-.sets2{display:grid;grid-template-columns:44px repeat(var(--n),minmax(0,1fr));gap:6px;align-items:center;margin-top:7px;max-width:420px}
-.sets2 .sl{font-size:12px;color:var(--muted);font-weight:600}
-.sets2 .sh{font-size:11px;color:var(--muted);text-align:center;letter-spacing:.04em}
-.sets2 input{width:100%;text-align:center;font-variant-numeric:tabular-nums}
+.srows{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-width:440px}
+.srow{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center}
+.srows.one .srow{grid-template-columns:26px minmax(0,1fr)}
+.srow.h{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.srow.h span:not(:first-child){text-align:center}
+.sn{font-size:13px;color:var(--muted);font-weight:600;text-align:center}
+.stp{display:flex;align-items:center;gap:4px;min-width:0}
+.stp input{flex:1;min-width:0;text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
+.stp input.pre{color:var(--muted);font-weight:500}
+.sbtn{flex:none;width:34px;height:38px;border:0;border-radius:12px;background:var(--soft);color:var(--ink);font:inherit;font-size:20px;font-weight:600;line-height:1;cursor:pointer;touch-action:manipulation}
+.sbtn:active{background:var(--accent);color:var(--accent-ink)}
 .hint{font-size:12px;color:var(--muted);margin-top:5px}
 .exchk{display:inline-flex;align-items:center;gap:10px;cursor:pointer;min-width:0}
 .exchk input{width:20px;height:20px;accent-color:var(--ok);margin:0;flex:none;cursor:pointer}
@@ -225,7 +234,7 @@ tr.selrow td{background:var(--accent-soft)}
 .ex.done + .ex{border-top-color:transparent;margin-top:8px}
 .ex + .ex.done{margin-top:8px}
 .ex.done .ex-h b{color:var(--muted)}
-.ex.done .sets,.ex.done .sets2,.ex.done .hint{opacity:.55}
+.ex.done .srows,.ex.done .hint{opacity:.55}
 .card.sdone .ex:not(.done){opacity:.6}
 .card.sdone{background:var(--panel2)}
 
@@ -342,8 +351,8 @@ button{touch-action:manipulation}
   .sets{gap:8px;flex-wrap:nowrap}
   .sets input{flex:1 1 0;width:auto;min-width:0;height:48px;font-size:18px;text-align:center}
   .sets .u{flex:none}
-  .sets2{gap:8px;max-width:none}
-  .sets2 input{height:46px;font-size:18px}
+  .stp input{height:44px;font-size:17px;padding:6px 2px}
+  .sbtn{width:38px;height:44px}
   .erow{grid-template-columns:40px minmax(0,1fr) 52px 76px 40px}
   .ord .x-btn{padding:2px 10px;font-size:18px}
   .x-btn{font-size:20px;padding:10px 12px}
@@ -426,7 +435,7 @@ let selAct = null;
 let DL;            // undefined = wird geladen, null = nicht verfügbar
 let busy = false;
 let lastImport = [];
-const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, pack: null, sloaded: false };
+const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, pack: null, gprof: null, sloaded: false };
 
 /* ---------- Speicher: Dashboard-Datenbank, sonst Browser, sonst Sitzung ---------- */
 function localLoad() {
@@ -445,6 +454,8 @@ function localLoad() {
     if (mv) Store.moves = JSON.parse(mv) || {};
     const pk = localStorage.getItem('ef27.pack');
     if (pk) Store.pack = JSON.parse(pk);
+    const gp = localStorage.getItem('ef27.gprof');
+    if (gp) Store.gprof = JSON.parse(gp);
     Store.mode = 'local';
   } catch (e) { Store.mode = 'memory'; }
   Store.sloaded = true;
@@ -458,6 +469,7 @@ function localSave() {
     localStorage.setItem('ef27.dlogs', JSON.stringify(Store.dlogs));
     localStorage.setItem('ef27.moves', JSON.stringify(Store.moves));
     if (Store.pack) localStorage.setItem('ef27.pack', JSON.stringify(Store.pack));
+    if (Store.gprof) localStorage.setItem('ef27.gprof', JSON.stringify(Store.gprof));
   } catch (e) { Store.mode = 'memory'; }
 }
 async function initStore() {
@@ -474,6 +486,10 @@ async function initStore() {
     db.doc('settings/main').onSnapshot(s => {
       if (s.exists) { const f = Number((s.data() || {}).ftp); if (f > 0) Store.ftp = f; }
       render();
+    }, () => {});
+    db.doc('garmin/profile').onSnapshot(sn => {
+      Store.gprof = sn.exists ? JSON.parse(JSON.stringify(sn.data())) : null;
+      gpCache = null; renderProgress(); renderWeek();
     }, () => {});
     db.doc('pack/main').onSnapshot(sn => {
       Store.pack = sn.exists ? JSON.parse(JSON.stringify(sn.data())) : null;
@@ -872,25 +888,54 @@ function parseAny(name, u8) {
   if (ext === 'gpx') return readGpx(text);
   throw new Error('Dateityp nicht unterstützt');
 }
-/* Garmin-Direktabruf (nur mit eigenem Server oder Vercel, siehe server/server.py und api/garmin.py) */
+/* Garmin-Direktabruf (eigener Server oder Vercel, siehe server/server.py und api/garmin.py):
+   Profil (Pulszonen, VO2max, HRV, Ruhepuls), fehlende Aktivitäten der letzten 120 Tage, Garmins Kennzahlen je Aktivität */
+const G_DAYS = 120;
+const gTs = x => { const g = x.g && x.g.startTimeGMT; if (g) return Date.parse(g.replace(' ', 'T') + 'Z') / 1000; return x.start ? Date.parse(x.start.replace(' ', 'T')) / 1000 : NaN; };
+const actNear = ts => Store.acts.find(a => Math.abs(a.start - ts) < 180);
+function gCompact(g) {
+  const hrz = [1, 2, 3, 4, 5].map(i => Math.round(g['hrTimeInZone_' + i] || 0));
+  const o = { vo2: g.vO2MaxValue || null, te: g.aerobicTrainingEffect || null, ate: g.anaerobicTrainingEffect || null,
+              label: g.trainingEffectLabel || null, load: g.activityTrainingLoad ? Math.round(g.activityTrainingLoad) : null, hrz: hrz.some(Boolean) ? hrz : null };
+  Object.keys(o).forEach(k => { if (o[k] == null) delete o[k]; });
+  return o;
+}
 async function garminSync() {
   if (busy) return;
+  const get = window.apiFetch || ((u, o) => fetch(u, Object.assign({ credentials: 'same-origin' }, o)));
   try {
-    toast('Hole Aktivitäten von Garmin …');
-    const get = window.apiFetch || ((u, o) => fetch(u, Object.assign({ credentials: 'same-origin' }, o)));
-    const r = await get('api/garmin/activities?days=14');
+    toast('Hole Garmin-Profil …');
+    try {
+      const pr = await get('api/garmin/profile');
+      if (pr.ok) {
+        Store.gprof = await pr.json(); gpCache = null;
+        enqueue(async () => { if (Store.db) await Store.db.doc('garmin/profile').set(Store.gprof); else localSave(); });
+      }
+    } catch (e) { /* Profil optional, Aktivitäten trotzdem laden */ }
+    toast('Hole Aktivitäten der letzten ' + G_DAYS + ' Tage …');
+    const r = await get('api/garmin/activities?days=' + G_DAYS);
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
     const list = j.activities || [];
-    if (!list.length) { toast('Keine Aktivitäten in den letzten 14 Tagen.'); return; }
+    const missing = list.filter(a => !actNear(gTs(a)));
     const files = [], failed = [];
-    for (const a of list) {
-      const fr = await get('api/garmin/file/' + encodeURIComponent(a.id));
-      if (!fr.ok) { failed.push(a.id); continue; }
-      files.push(new File([await fr.arrayBuffer()], 'garmin-' + a.id + '.zip'));
+    for (let k = 0; k < missing.length; k++) {
+      toast(`Lade Aktivität ${k + 1} von ${missing.length} …`);
+      const fr = await get('api/garmin/file/' + encodeURIComponent(missing[k].id));
+      if (!fr.ok) { failed.push(missing[k].id); continue; }
+      files.push(new File([await fr.arrayBuffer()], 'garmin-' + missing[k].id + '.zip'));
     }
     if (files.length) await importFiles(files);
-    toast(files.length + ' Aktivitäten geladen' + (failed.length ? ', ' + failed.length + ' fehlgeschlagen' : '') + '.');
+    // Garmins Kennzahlen (VO2max, Trainingseffekt, Pulszonen) an die gespeicherten Aktivitäten hängen
+    const upd = [];
+    for (const x of list) {
+      const a = actNear(gTs(x)); if (!a || !x.g) continue;
+      const g = gCompact(x.g);
+      if (Object.keys(g).length && JSON.stringify(a.g || {}) !== JSON.stringify(g)) upd.push(Object.assign({}, a, { g }));
+    }
+    if (upd.length) await storeAdd(upd);
+    render();
+    toast(`Garmin: ${files.length} neue Aktivitäten${upd.length ? ', ' + upd.length + ' mit Garmin-Werten ergänzt' : ''}${failed.length ? ', ' + failed.length + ' fehlgeschlagen' : ''}${Store.gprof ? ', Profil aktualisiert' : ''}.`);
   } catch (e) { toast('Garmin: ' + ((e && e.message) || e)); }
 }
 async function importFiles(files) {
@@ -1213,7 +1258,7 @@ function renderGarmin() {
     <div class="g-grid">
       <div class="card">
         <div class="card-h"><h3>Garmin-Daten</h3></div>
-        ${window.GARMIN_SYNC ? `<button class="btn" style="width:100%;margin-bottom:10px" data-action="g-sync"${busy ? ' disabled' : ''}>Von Garmin laden · letzte 14 Tage</button>` : ''}
+        ${window.GARMIN_SYNC ? `<button class="btn" style="width:100%;margin-bottom:10px" data-action="g-sync"${busy ? ' disabled' : ''}>Von Garmin laden · Profil und ${G_DAYS} Tage</button>` : ''}
         <input class="sr" type="file" id="fileIn" accept=".fit,.tcx,.gpx,.zip" multiple${busy || Store.mode === 'pending' ? ' disabled' : ''}>
         <label class="drop" for="fileIn" id="drop"><b>${busy ? 'Wird gelesen …' : 'Dateien auswählen oder hierher ziehen'}</b><span class="muted">FIT, TCX, GPX oder die ZIP-Datei aus Garmin Connect</span></label>
         ${logHtml}
@@ -1244,7 +1289,46 @@ function plannedTss(s) {
   if (s.type === 'B') return 150;   // Ausfahrt draußen, ca. 2,5 h
   return PLAN_TSS[s.type] || 0;
 }
-function hrMaxSeen() { let m = 0; Store.acts.forEach(a => { if (a.maxHr > m) m = a.maxHr; }); return m >= 150 ? m : 0; }
+/* ---------- Garmin-Profil (Pulszonen, VO2max, Ruhepuls, HRV) ---------- */
+let gpCache = null;
+function deepNum(o, re, depth = 0) {
+  if (!o || depth > 6 || typeof o !== 'object') return null;
+  const vals = Array.isArray(o) ? o : Object.values(o);
+  if (!Array.isArray(o)) for (const [k, v] of Object.entries(o)) if (re.test(k) && typeof v === 'number' && v > 0) return v;
+  for (const v of vals) { const r = deepNum(v, re, depth + 1); if (r != null) return r; }
+  return null;
+}
+const firstArr = o => Array.isArray(o) ? o : o && typeof o === 'object' ? (Object.values(o).find(Array.isArray) || []) : [];
+function gProfile() {
+  const P = Store.gprof; if (!P) return null;
+  if (gpCache && gpCache.src === P) return gpCache;
+  const zl = firstArr(P.zones).length ? firstArr(P.zones) : (P.zones && typeof P.zones === 'object' ? [P.zones] : []);
+  const z = zl.find(x => /cycl|bik/i.test(x && x.sport || '')) || zl.find(x => /default|generic/i.test(x && x.sport || '')) || zl[0] || null;
+  const floors = z ? [1, 2, 3, 4, 5].map(i => z['zone' + i + 'Floor']).filter(v => v > 0) : [];
+  const daily = (Array.isArray(P.daily) ? P.daily : []).filter(d => d && d.calendarDate).sort((a, b) => a.calendarDate < b.calendarDate ? -1 : 1);
+  const hrvL = firstArr(P.hrv).filter(d => d && typeof d === 'object' && (d.calendarDate || d.date)).sort((a, b) => (a.calendarDate || a.date) < (b.calendarDate || b.date) ? -1 : 1);
+  gpCache = {
+    src: P, fetched: P.fetched, sport: z && z.sport,
+    floors: floors.length === 5 ? floors : null,
+    max: (z && z.maxHeartRateUsed) || deepNum(P.settings, /^maxHeartRate/i) || null,
+    rest: (z && z.restingHeartRateUsed) || null,
+    lthr: deepNum(P.settings, /lactateThresholdHeartRate/i) || (z && z.lactateThresholdHeartRateUsed) || null,
+    vo2c: deepNum(P.settings, /vo2max.*cycl/i), vo2r: deepNum(P.settings, /vo2max.*run/i),
+    fitAge: deepNum(P.fitnessAge, /^fitnessAge$/i) || deepNum(P.fitnessAge, /fitnessage/i),
+    rhr: daily.filter(d => d.restingHeartRate > 0).map(d => ({ d: d.calendarDate, v: d.restingHeartRate })),
+    hrv: hrvL.map(d => ({ d: d.calendarDate || d.date, v: deepNum(d, /lastNightAvg/i), wk: deepNum(d, /weeklyAvg/i), st: d.status || '' })).filter(x => x.v),
+    errors: P.errors || {}
+  };
+  return gpCache;
+}
+// Pulsgrenzen für "hart" und "Schwelle": Garmin-Zonen 5 und 4, sonst 90 % / 82 % vom Maximalpuls
+function hrBounds(hrMax) {
+  const g = gProfile();
+  if (g && g.floors) return { hi: g.floors[4], thr: g.floors[3] };
+  return hrMax ? { hi: hrMax * .9, thr: hrMax * .82 } : null;
+}
+function hrMaxSeen() {
+  const g = gProfile(); if (g && g.max) return g.max; let m = 0; Store.acts.forEach(a => { if (a.maxHr > m) m = a.maxHr; }); return m >= 150 ? m : 0; }
 function loadOf(a, hrMax) {
   const t = tssOf(a);
   if (t != null) return { tss: t, est: false };
@@ -1293,7 +1377,8 @@ function spinZones(a, hrMax) {
     s.p.forEach(v => { if (v == null) return; const f = v / Store.ftp; if (f >= 1.06) hi += s.step; else if (f >= .88) thr += s.step; });
   } else if (s.hr && hrMax) {
     by = 'Puls';
-    s.hr.forEach(v => { if (v == null) return; const f = v / hrMax; if (f >= .90) hi += s.step; else if (f >= .82) thr += s.step; });
+    const hb = hrBounds(hrMax);
+    s.hr.forEach(v => { if (v == null) return; if (v >= hb.hi) hi += s.step; else if (v >= hb.thr) thr += s.step; });
   } else return null;
   return { hi: hi / 60, thr: thr / 60, by };
 }
@@ -1575,6 +1660,66 @@ function chartWidths(el) {
   const full = Math.max(300, Math.round(w - pad)), half = w >= 938 ? Math.max(300, Math.round((w - 18) / 2 - pad)) : full;
   return { full, half };
 }
+// Kleiner Verlauf (Sparkline) für die Garmin-Kacheln
+function spark(vals, col) {
+  if (vals.length < 2) return '';
+  const w = 220, h = 44, lo = Math.min(...vals), hi = Math.max(...vals), r = hi - lo || 1;
+  const X = i => 3 + i * (w - 6) / (vals.length - 1), Y = v => h - 5 - (v - lo) / r * (h - 10);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="${vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/></svg>`;
+}
+const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+function garminProfileHtml() {
+  const g = gProfile(), now = Date.now() / 1000;
+  const vo2 = Store.acts.filter(a => a.g && a.g.vo2 && a.sport === 'rad').sort((a, b) => a.start - b.start);
+  if (!g && !vo2.length) return window.GARMIN_SYNC ? `<div class="card"><div class="card-h"><h3>Garmin-Werte</h3></div><p class="muted">Tippe im Tab Garmin auf „Von Garmin laden“. Dann stehen hier VO2max, Pulszonen, Ruhepuls und HRV.</p></div>` : '';
+  const tiles = [], tips = [];
+  // VO2max: Garmins Schätzung je Radfahrt, sonst der Profilwert
+  const vNow = vo2.length ? vo2[vo2.length - 1].g.vo2 : g && g.vo2c;
+  if (vNow) {
+    const old = vo2.filter(a => a.start < now - 56 * 86400).pop(), dv = old ? vNow - old.g.vo2 : null;
+    tiles.push(`<div class="tile"><span class="k">VO2max Rad</span><span class="v">${Math.round(vNow)}</span><span class="s">${dv != null ? (dv >= 0 ? '+' : '−') + Math.abs(Math.round(dv)) + ' in 8 Wochen' : 'ml/kg/min, Garmin-Schätzung'}</span>${spark(vo2.slice(-30).map(a => a.g.vo2), 'var(--accent)')}</div>`);
+    if (dv != null && dv >= 2) tips.push(`VO2max ist in 8 Wochen um ${Math.round(dv)} gestiegen: die Spinning-Intervalle wirken.`);
+  } else if (g && g.vo2r) tiles.push(`<div class="tile"><span class="k">VO2max Laufen</span><span class="v">${Math.round(g.vo2r)}</span><span class="s">Für Rad fehlt noch eine Garmin-Schätzung (braucht Leistung und Puls).</span></div>`);
+  if (g && g.rhr.length) {
+    const last7 = avg(g.rhr.slice(-7).map(x => x.v)), base = avg(g.rhr.slice(-35, -7).map(x => x.v));
+    const d = base ? last7 - base : null;
+    tiles.push(`<div class="tile"><span class="k">Ruhepuls</span><span class="v">${Math.round(last7)}</span><span class="s">${d != null ? `Ø 7 Tage, ${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d))} zum Monatsschnitt` : 'Ø 7 Tage'}</span>${spark(g.rhr.slice(-60).map(x => x.v), 'var(--c1)')}</div>`);
+    if (d != null && d >= 4) tips.push(`Ruhepuls ${Math.round(d)} Schläge über deinem Schnitt: Zeichen für Müdigkeit, Stress oder einen beginnenden Infekt. Die nächsten Einheiten lockerer.`);
+    else if (d != null && d <= -3) tips.push('Ruhepuls sinkt: dein Herz arbeitet ökonomischer, gutes Zeichen für die Grundlage.');
+  }
+  if (g && g.hrv.length) {
+    const h = g.hrv[g.hrv.length - 1], st = String(h.st || '').toUpperCase();
+    const stTxt = { BALANCED: 'ausgeglichen', UNBALANCED: 'unausgeglichen', LOW: 'niedrig', POOR: 'niedrig' }[st] || '';
+    tiles.push(`<div class="tile"><span class="k">HRV</span><span class="v">${Math.round(h.v)} ms</span><span class="s">letzte Nacht${h.wk ? ', Ø Woche ' + Math.round(h.wk) + ' ms' : ''}${stTxt ? ' · ' + stTxt : ''}</span>${spark(g.hrv.slice(-60).map(x => x.v), 'var(--ok)')}</div>`);
+    if (st === 'LOW' || st === 'UNBALANCED' || st === 'POOR') tips.push('HRV-Status ' + stTxt + ': der Körper ist noch nicht erholt. Harte Einheiten lieber verschieben oder kürzen.');
+  }
+  if (g && (g.lthr || g.max)) tiles.push(`<div class="tile"><span class="k">Puls-Grenzen</span><span class="v">${g.lthr ? Math.round(g.lthr) : Math.round(g.max)}</span><span class="s">${g.lthr ? 'Laktatschwelle' + (g.max ? ', max. ' + Math.round(g.max) : '') : 'Maximalpuls'}</span></div>`);
+  if (g && g.fitAge) tiles.push(`<div class="tile"><span class="k">Fitnessalter</span><span class="v">${Math.round(g.fitAge)}</span><span class="s">laut Garmin</span></div>`);
+  // Pulszonen mit Zeit der letzten 4 Wochen (Garmins Werte je Aktivität, sonst aus dem Pulsverlauf)
+  let zones = '';
+  if (g && g.floors) {
+    const f = g.floors, names = ['Erholung', 'Grundlage', 'Tempo', 'Schwelle', 'VO2max'], cols = ['--z1', '--z2', '--z3', '--z5', '--z6'];
+    const sec = [0, 0, 0, 0, 0];
+    Store.acts.filter(a => a.start > now - 28 * 86400).forEach(a => {
+      if (a.g && a.g.hrz) a.g.hrz.forEach((v, i) => { sec[i] += v; });
+      else if (a.series && a.series.hr) a.series.hr.forEach(v => { if (v == null || v < f[0]) return; let i = 4; while (i > 0 && v < f[i]) i--; sec[i] += a.series.step; });
+    });
+    const tot = sec.reduce((a, b) => a + b, 0);
+    zones = `<div class="tblwrap"><table><thead><tr><th>Zone</th><th class="r">Puls</th><th class="r">Zeit 4 Wochen</th><th class="r">Anteil</th></tr></thead><tbody>${names.map((n, i) =>
+      `<tr><td><i class="sw" style="--c:var(${cols[i]})"></i> Z${i + 1} ${n}</td><td class="r">${f[i]}–${i < 4 ? f[i + 1] - 1 : (g.max ? Math.round(g.max) : '')}</td><td class="r">${fmtDur(sec[i])}</td><td class="r">${tot ? Math.round(sec[i] / tot * 100) + ' %' : '–'}</td></tr>`).join('')}</tbody></table></div>`;
+    if (tot > 3600) {
+      const low = (sec[0] + sec[1]) / tot, hi = (sec[3] + sec[4]) / tot;
+      if (low < .6) tips.push(`Nur ${Math.round(low * 100)} % deiner Zeit in Z1–Z2. Für die Grundlage sollten es eher 70–80 % sein: Rolle A und B ruhiger fahren.`);
+      else if (hi > .05) tips.push(`Gute Verteilung: ${Math.round(low * 100)} % locker, ${Math.round(hi * 100)} % hart. So soll ein Ausdauerplan aussehen.`);
+    }
+  }
+  const errs = g ? Object.keys(g.errors) : [];
+  return `<div class="card"><div class="card-h"><h3>Garmin-Werte</h3><span class="muted">${g && g.fetched ? 'Stand ' + fmtDM(parseISO(g.fetched)) : ''}</span></div>
+    ${tiles.length ? `<div class="tiles">${tiles.join('')}</div>` : ''}
+    ${tips.length ? `<ul class="insights" style="margin-top:14px">${tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${zones ? `<h3 style="margin:16px 0 6px">Deine Pulszonen${g.sport && !/default/i.test(g.sport) ? ' (' + esc(String(g.sport).toLowerCase()) + ')' : ''}</h3>${zones}<p class="note">Aus Garmin Connect. Die Spinning-Auswertung nutzt diese Zonen: Z5 zählt als hart, Z4 als Schwelle.</p>` : ''}
+    ${errs.length ? `<p class="note">Nicht geladen: ${esc(errs.join(', '))}.</p>` : ''}</div>`;
+}
 function renderProgress() {
   const el = $('#progress'); if (!el) return;
   const cw = chartWidths(el);
@@ -1620,6 +1765,7 @@ function renderProgress() {
   const ro = t => `<div class="readout">${t}</div>`;
   el.innerHTML = `<div class="card-h" style="margin:0"><div class="wk-title"><h2>Fortschritt</h2><span class="muted">aus Garmin-Daten und deinen Haken</span></div></div>
     <div class="tiles">${tiles.join('')}</div>
+    ${garminProfileHtml()}
     <div class="card"><div class="card-h"><h3>Auswertung</h3></div><ul class="insights">${ins.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>
     ${D.length ? `<div class="card"><div class="card-h"><h3>Fitness, Ermüdung und Form</h3>
       <div class="legend"><span><i class="lkey" style="--c:var(--c1)"></i>Fitness (42 Tage)</span><span><i class="lkey" style="--c:var(--c2)"></i>Ermüdung (7 Tage)</span><span><i class="lkey" style="--c:var(--ink)"></i>Form</span></div></div>
@@ -1886,7 +2032,9 @@ function analyzeSess(w, i, s, a) {
   let verdict = '', tone = '';
   const ld = loadOf(a, hrMax), plan = plannedTss(s);
   items.push(`Dauer ${fmtDur(a.dur)}${s.min ? ` (geplant ${s.min} min)` : ''} · Belastung ${Math.round(ld.tss)} TSS${ld.est ? ' (geschätzt)' : ''}${plan ? `, geplant ca. ${Math.round(plan)}` : ''}`);
-  if (a.te) items.push(`Garmin-Trainingseffekt: aerob ${num(a.te, 1)} (${TE_LBL(a.te)})${a.ate ? `, anaerob ${num(a.ate, 1)} (${TE_LBL(a.ate)})` : ''}`);
+  const te = a.te || (a.g && a.g.te), ate = a.ate || (a.g && a.g.ate);
+  if (te) items.push(`Garmin-Trainingseffekt: aerob ${num(te, 1)} (${TE_LBL(te)})${ate ? `, anaerob ${num(ate, 1)} (${TE_LBL(ate)})` : ''}`);
+  if (a.g && a.g.vo2) items.push(`Garmin-VO2max-Schätzung nach dieser Fahrt: ${Math.round(a.g.vo2)}`);
   if (s.type === 'spin' && s.tag === 'Test') {
     const b20 = bestPower(a, 1200);
     if (a.maxHr && hrMax) items.push(`Spitzenpuls ${a.maxHr} (${Math.round(a.maxHr / hrMax * 100)} % deines höchsten gemessenen Pulses)`);
@@ -2019,10 +2167,38 @@ function toggleExDone(t) {
   if (!lg.ex) lg.ex = {};
   const e = lg.ex[ex.id] || (lg.ex[ex.id] = { n: ex.name, w: [] });
   e.n = ex.name;
-  if (t.checked) e.d = true; else delete e.d;
+  if (t.checked) {
+    e.d = true;
+    // unveränderte Vorbelegungen speichern, damit die nächste Woche darauf aufbaut
+    const last = lastFor(ex, lg.week), planR = (String(ex.reps || '').match(/\d+/) || [''])[0], withReps = /kg|lb/i.test(unitOf(ps));
+    for (let k = 0; k < (ex.sets || 3); k++) {
+      ['w', 'r'].forEach(kind => {
+        if (kind === 'r' && !withReps) return;
+        const arr = e[kind] || (e[kind] = []);
+        while (arr.length <= k) arr.push('');
+        if (!String(arr[k]).trim()) arr[k] = exPrefill(last, planR, k, kind, withReps);
+      });
+    }
+  } else delete e.d;
   if (ps.exercises.length && ps.exercises.every(x => lg.ex[x.id] && lg.ex[x.id].d) && !lg.done) { lg.done = true; lg.doneAt = dkey(new Date()); }
   persistLog(key); renderStrength(); renderWeek(); renderProgress();
   const nt = $('#strength [data-exd][data-ex="' + ex.id + '"]'); if (nt) nt.focus();
+}
+// Vorbelegung eines Satzes aus der letzten Woche bzw. der geplanten Wiederholungszahl
+function exPrefill(last, planR, k, kind, withReps) {
+  if (kind === 'r') return (last && last.r[k]) || (withReps ? planR : '') || '';
+  return (last && last.w[k]) || '';
+}
+const parseNum = v => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
+const fmtNum = x => (Math.round(x * 100) / 100).toString().replace('.', ',');
+function stepSet(btn) {
+  const inp = btn.parentElement.querySelector('input'); if (!inp) return;
+  const dir = Number(btn.dataset.step), ps = planSession(inp.dataset.sid), unit = unitOf(ps), v = parseNum(inp.value) || 0;
+  const ref = dir < 0 ? v - 0.001 : v;   // beim Runterzählen gilt die kleinere Schrittweite schon ab der Grenze
+  const step = inp.dataset.kind === 'r' ? 1 : /kg|lb/i.test(unit) ? (ref >= 20 ? 2.5 : 1) : (ref >= 15 ? 5 : 1);
+  inp.value = fmtNum(Math.max(0, v + dir * step));
+  inp.classList.remove('pre');
+  setWeight(inp);
 }
 function setWeight(t) {
   const key = t.dataset.w, sid = t.dataset.sid, ps = planSession(sid);
@@ -2100,11 +2276,13 @@ function renderStrength() {
         const le = (lg.ex && lg.ex[ex.id]) || {}, cur = le.w || [], curR = le.r || [], last = lastFor(ex, w.n), n = ex.sets || 3, exd = !!le.d;
         const unit = unitOf(ps), withReps = /kg|lb/i.test(unit);   // bei Gewichten auch die geschafften Wiederholungen
         const planR = (String(ex.reps || '').match(/\d+/) || [''])[0];
-        const inp = (k, kind) => `<input class="fld" type="text" inputmode="${kind === 'r' ? 'numeric' : 'decimal'}" autocomplete="off" aria-label="${esc(ex.name)}, Satz ${k + 1}, ${kind === 'r' ? 'Wiederholungen' : esc(unit || 'Wert')}" data-w="${key}" data-kind="${kind}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-set="${k}" value="${esc((kind === 'r' ? curR : cur)[k] || '')}" placeholder="${esc(kind === 'r' ? (last && last.r[k]) || planR : (last && last.w[k]) || '')}">`;
+        // Vorbelegung: Werte der letzten Woche (Wiederholungen sonst die geplante Zahl); hell, bis du etwas änderst
+        const val = (k, kind) => { const c = (kind === 'r' ? curR : cur)[k]; return c ? { v: c, pre: false } : { v: exPrefill(last, planR, k, kind, withReps), pre: true }; };
+        const stp = (k, kind) => { const x = val(k, kind), lbl = `${esc(ex.name)}, Satz ${k + 1}, ${kind === 'r' ? 'Wiederholungen' : esc(unit || 'Wert')}`;
+          return `<div class="stp"><button type="button" class="sbtn" data-step="-1" aria-label="${lbl} weniger">−</button><input class="fld${x.pre ? ' pre' : ''}" type="text" inputmode="${kind === 'r' ? 'numeric' : 'decimal'}" autocomplete="off" aria-label="${lbl}" data-w="${key}" data-kind="${kind}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-set="${k}" value="${esc(x.v)}" placeholder="–"><button type="button" class="sbtn" data-step="1" aria-label="${lbl} mehr">+</button></div>`; };
         const ks = Array.from({ length: n }, (_, k) => k);
-        const inputs = withReps
-          ? `<div class="sets2" style="--n:${n}"><span></span>${ks.map(k => `<span class="sh">Satz ${k + 1}</span>`).join('')}<span class="sl">${esc(unit)}</span>${ks.map(k => inp(k, 'w')).join('')}<span class="sl">Wdh.</span>${ks.map(k => inp(k, 'r')).join('')}</div>`
-          : `<div class="sets">${ks.map(k => inp(k, 'w')).join('')}${unit ? `<span class="u">${esc(unit)}</span>` : ''}</div>`;
+        const inputs = `<div class="srows${withReps ? '' : ' one'}"><div class="srow h"><span>Satz</span><span>${esc(unit || 'Wert')}</span>${withReps ? '<span>Wdh.</span>' : ''}</div>${ks.map(k =>
+          `<div class="srow"><span class="sn">${k + 1}</span>${stp(k, 'w')}${withReps ? stp(k, 'r') : ''}</div>`).join('')}</div>`;
         const hint = last ? `${last.week === w.n - 1 ? 'Letzte Woche' : 'Zuletzt (Woche ' + last.week + ')'}: ${esc(fmtSets(last.w, last.r, unit))}` : 'Noch keine Werte aus früheren Wochen.';
         return `<div class="ex${exd ? ' done' : ''}"><div class="ex-h"><label class="exchk"><input type="checkbox" data-exd="${key}" data-sid="${esc(ps.id)}" data-ex="${esc(ex.id)}" data-wn="${w.n}"${exd ? ' checked' : ''} aria-label="${esc(ex.name)} erledigt"><b>${esc(ex.name || 'Ohne Namen')}</b></label><span class="muted tab">${n}×${esc(ex.reps || '')}</span></div>
           ${inputs}<div class="hint">${hint}</div></div>`;
@@ -2143,6 +2321,8 @@ document.addEventListener('click', ev => {
     if (isPhone() && wkEl.closest('#strip')) { view = 'woche'; try { localStorage.setItem('ef27.view', view); } catch (e) {} window.scrollTo(0, 0); }
     render(); return;
   }
+  const sb = ev.target.closest('[data-step]');
+  if (sb) { buzz(); stepSet(sb); return; }
   const ptb = ev.target.closest('[data-ptab]');
   if (ptb) { packTab = ptb.dataset.ptab; try { localStorage.setItem('ef27.ptab', packTab); } catch (e) {} renderPack(); const b = $('#pack [data-ptab="' + packTab + '"]'); if (b) b.focus(); return; }
   const pdl = ev.target.closest('[data-pdel]');

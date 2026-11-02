@@ -19,7 +19,7 @@
 
   let data = lsGet(K_CACHE, {});          // { collection: { id: doc } }
   let outbox = lsGet(K_OUT, []);          // [{ op: 'set'|'delete', col, id, doc }]
-  let version = null, loaded = false, flushing = false;
+  let version = null, loaded = false, flushing = false, inflight = null;
   const subs = [];                        // { col, id|null, cb }
   const readyCbs = [];
 
@@ -162,17 +162,18 @@
     flushing = true;
     try {
       while (outbox.length) {
-        const op = outbox[0];
+        const op = inflight = outbox[0];
+        const done = () => { outbox = outbox.filter(o => o !== op); persist(); };   // genau diese Änderung entfernen, nicht eine neuere
         try {
           if (op.op === 'set') await backend.put(op.col, op.id, op.doc);
           else await backend.del(op.col, op.id);
         } catch (e) {
-          if (e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 401) { outbox.shift(); persist(); continue; } // unbrauchbare Änderung verwerfen
+          if (e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 401) { done(); continue; } // unbrauchbare Änderung verwerfen
           throw e;
         }
-        outbox.shift(); persist();
+        done();
       }
-    } finally { flushing = false; }
+    } finally { flushing = false; inflight = null; }
   }
 
   async function pull() {
@@ -212,8 +213,8 @@
   function write(op) {
     applyLocal(op);
     outbox.push(op);
-    // mehrere Änderungen am selben Dokument zusammenfassen (nur die letzte zählt)
-    outbox = outbox.filter((o, i) => !outbox.some((p, j) => j > i && p.col === o.col && p.id === o.id));
+    // mehrere Änderungen am selben Dokument zusammenfassen (nur die letzte zählt); die gerade gesendete bleibt stehen
+    outbox = outbox.filter((o, i) => o === inflight || !outbox.some((p, j) => j > i && p.col === o.col && p.id === o.id));
     persist();
     notify(op.col);
     flush().catch(() => {});

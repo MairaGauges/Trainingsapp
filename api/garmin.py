@@ -43,11 +43,13 @@ class handler(BaseHTTPRequestHandler):
             return self._json(err[0], {"error": err[1]})
         if p == "status":
             return self._json(200, {"configured": garmin.configured()})
+        if p == "profile":
+            return self._json(200, garmin.profile())
         if p == "diag":
             return self._json(200, garmin.diag())
         if p == "activities":
             try:
-                days = max(1, min(int((q.get("days") or ["14"])[0]), 90))
+                days = max(1, min(int((q.get("days") or ["14"])[0]), 730))
                 return self._json(200, {"activities": garmin.activities(days)})
             except (GarminError, ValueError) as e:
                 return self._json(502, {"error": str(e)})
