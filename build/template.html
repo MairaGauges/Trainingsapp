@@ -1388,17 +1388,10 @@ const firstArr = o => Array.isArray(o) ? o : o && typeof o === 'object' ? (Objec
 function gProfile() {
   const P = Store.gprof; if (!P) return null;
   if (gpCache && gpCache.src === P) return gpCache;
-  const zl = firstArr(P.zones).length ? firstArr(P.zones) : (P.zones && typeof P.zones === 'object' ? [P.zones] : []);
-  const z = zl.find(x => /cycl|bik/i.test(x && x.sport || '')) || zl.find(x => /default|generic/i.test(x && x.sport || '')) || zl[0] || null;
-  const floors = z ? [1, 2, 3, 4, 5].map(i => z['zone' + i + 'Floor']).filter(v => v > 0) : [];
   const daily = (Array.isArray(P.daily) ? P.daily : []).filter(d => d && d.calendarDate).sort((a, b) => a.calendarDate < b.calendarDate ? -1 : 1);
   const hrvL = firstArr(P.hrv).filter(d => d && typeof d === 'object' && (d.calendarDate || d.date)).sort((a, b) => (a.calendarDate || a.date) < (b.calendarDate || b.date) ? -1 : 1);
   gpCache = {
-    src: P, fetched: P.fetched, sport: z && z.sport,
-    floors: floors.length === 5 ? floors : null,
-    max: (z && z.maxHeartRateUsed) || deepNum(P.settings, /^maxHeartRate/i) || null,
-    rest: (z && z.restingHeartRateUsed) || null,
-    lthr: deepNum(P.settings, /lactateThresholdHeartRate/i) || (z && z.lactateThresholdHeartRateUsed) || null,
+    src: P, fetched: P.fetched,   // Garmins Pulszonen werden bewusst nicht genutzt (eigene Zonen: myZones)
     vo2c: deepNum(P.settings, /vo2max.*cycl/i), vo2r: deepNum(P.settings, /vo2max.*run/i),
     fitAge: deepNum(P.fitnessAge, /^fitnessAge$/i) || deepNum(P.fitnessAge, /fitnessage/i),
     rhr: daily.filter(d => d.restingHeartRate > 0).map(d => ({ d: d.calendarDate, v: d.restingHeartRate })),
@@ -1407,14 +1400,51 @@ function gProfile() {
   };
   return gpCache;
 }
-// Pulsgrenzen für "hart" und "Schwelle": Garmin-Zonen 5 und 4, sonst 90 % / 82 % vom Maximalpuls
+/* Eigene Pulszonen (nicht Garmins Bereiche):
+   1) aus dem letzten FTP-Test: LTHR = 95 % des Ø-Pulses der härtesten 20 min, Rad-Zonen nach Friel
+   2) sonst nach Karvonen aus höchstem gemessenem Puls und Ruhepuls (Herzfrequenzreserve 50/60/70/80/90 %) */
+function best20Hr(a) {
+  const s = a.series; if (!s || !s.hr || !s.step || (a.dur || 0) < 1150) return null;
+  const n = Math.round(1200 / s.step); if (n > s.hr.length) return null;
+  const key = s.p && s.p.some(v => v > 0) ? s.p : s.hr;   // mit Leistung: das 20-min-Fenster mit der höchsten Leistung
+  let best = -1, at = 0;
+  for (let k = 0; k + n <= key.length; k++) { let sum = 0; for (let j = k; j < k + n; j++) sum += key[j] || 0; if (sum > best) { best = sum; at = k; } }
+  const hr = s.hr.slice(at, at + n).filter(v => v > 0);
+  return hr.length >= n * .9 ? hr.reduce((x, y) => x + y, 0) / hr.length : null;
+}
+let zCache = null;
+function myZones() {
+  const key = Store.acts.length + '|' + (Store.acts[Store.acts.length - 1] || {}).id + '|' + (Store.gprof && Store.gprof.fetched);
+  if (zCache && zCache.key === key) return zCache.z;
+  let z = null;
+  const tests = [];
+  W.forEach(w => w.sessions.forEach((s, i) => { if (s && s.sport === 'rad' && s.tag === 'Test') garminDone(w, s, i).forEach(a => tests.push(a)); }));
+  tests.sort((a, b) => b.start - a.start);
+  for (const a of tests) {
+    const h = best20Hr(a);
+    if (h) {
+      const lthr = Math.round(h * .95), pc = [.81, .90, .94, 1.0].map(x => Math.round(lthr * x));
+      z = { method: 'lthr', lthr, date: a.start, floors: [Math.round(lthr * .6), ...pc], max: Math.max(hrMaxSeen(), pc[3] + 5) };
+      break;
+    }
+  }
+  if (!z) {
+    const max = hrMaxSeen(), g = gProfile();
+    const rhr = g && g.rhr.length ? Math.round(g.rhr.slice(-14).reduce((x, y) => x + y.v, 0) / g.rhr.slice(-14).length) : null;
+    const rest = rhr || 60;
+    if (max) z = { method: 'karvonen', max, rest, restMeasured: !!rhr, floors: [.5, .6, .7, .8, .9].map(x => Math.round(rest + x * (max - rest))) };
+  }
+  zCache = { key, z };
+  return z;
+}
+// Pulsgrenzen für "hart" und "Schwelle": eigene Zonen 5 und 4, sonst 90 % / 82 % vom Maximalpuls
 function hrBounds(hrMax) {
-  const g = gProfile();
-  if (g && g.floors) return { hi: g.floors[4], thr: g.floors[3] };
+  const z = myZones();
+  if (z) return { hi: z.floors[4], thr: z.floors[3] };
   return hrMax ? { hi: hrMax * .9, thr: hrMax * .82 } : null;
 }
-function hrMaxSeen() {
-  const g = gProfile(); if (g && g.max) return g.max; let m = 0; Store.acts.forEach(a => { if (a.maxHr > m) m = a.maxHr; }); return m >= 150 ? m : 0; }
+// Höchster gemessener Puls aus den Aktivitäten (Ausreißer über 215 zählen nicht)
+function hrMaxSeen() { let m = 0; Store.acts.forEach(a => { if (a.maxHr > m && a.maxHr <= 215) m = a.maxHr; }); return m >= 150 ? m : 0; }
 function loadOf(a, hrMax) {
   const t = tssOf(a);
   if (t != null) return { tss: t, est: false };
@@ -1757,7 +1787,8 @@ const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
 function garminProfileHtml() {
   const g = gProfile(), now = Date.now() / 1000;
   const vo2 = Store.acts.filter(a => a.g && a.g.vo2 && a.sport === 'rad').sort((a, b) => a.start - b.start);
-  if (!g && !vo2.length) return window.GARMIN_SYNC ? `<div class="card"><div class="card-h"><h3>Garmin-Werte</h3></div><p class="muted">Tippe im Tab Garmin auf „Von Garmin laden“. Dann stehen hier VO2max, Pulszonen, Ruhepuls und HRV.</p></div>` : '';
+  const Z = myZones();
+  if (!g && !vo2.length && !Z) return window.GARMIN_SYNC ? `<div class="card"><div class="card-h"><h3>Garmin-Werte</h3></div><p class="muted">Tippe im Tab Garmin auf „Von Garmin laden“. Dann stehen hier VO2max, Pulszonen, Ruhepuls und HRV.</p></div>` : '';
   const tiles = [], tips = [];
   // VO2max: Garmins Schätzung je Radfahrt, sonst der Profilwert
   const vNow = vo2.length ? vo2[vo2.length - 1].g.vo2 : g && g.vo2c;
@@ -1779,31 +1810,34 @@ function garminProfileHtml() {
     tiles.push(`<div class="tile"><span class="k">HRV</span><span class="v">${Math.round(h.v)} ms</span><span class="s">letzte Nacht${h.wk ? ', Ø Woche ' + Math.round(h.wk) + ' ms' : ''}${stTxt ? ' · ' + stTxt : ''}</span>${spark(g.hrv.slice(-60).map(x => x.v), 'var(--ok)')}</div>`);
     if (st === 'LOW' || st === 'UNBALANCED' || st === 'POOR') tips.push('HRV-Status ' + stTxt + ': der Körper ist noch nicht erholt. Harte Einheiten lieber verschieben oder kürzen.');
   }
-  if (g && (g.lthr || g.max)) tiles.push(`<div class="tile"><span class="k">Puls-Grenzen</span><span class="v">${g.lthr ? Math.round(g.lthr) : Math.round(g.max)}</span><span class="s">${g.lthr ? 'Laktatschwelle' + (g.max ? ', max. ' + Math.round(g.max) : '') : 'Maximalpuls'}</span></div>`);
+  if (Z) tiles.push(`<div class="tile"><span class="k">${Z.method === 'lthr' ? 'Laktatschwelle' : 'Maximalpuls'}</span><span class="v">${Z.method === 'lthr' ? Z.lthr : Z.max}</span><span class="s">${Z.method === 'lthr' ? 'aus deinem FTP-Test' : 'höchster gemessener Wert'}</span></div>`);
   if (g && g.fitAge) tiles.push(`<div class="tile"><span class="k">Fitnessalter</span><span class="v">${Math.round(g.fitAge)}</span><span class="s">laut Garmin</span></div>`);
   // Pulszonen mit Zeit der letzten 4 Wochen (Garmins Werte je Aktivität, sonst aus dem Pulsverlauf)
   let zones = '';
-  if (g && g.floors) {
-    const f = g.floors, names = ['Erholung', 'Grundlage', 'Tempo', 'Schwelle', 'VO2max'], cols = ['--z1', '--z2', '--z3', '--z5', '--z6'];
+  if (Z) {
+    const f = Z.floors, names = ['Erholung', 'Grundlage', 'Tempo', 'Schwelle', 'VO2max'], cols = ['--z1', '--z2', '--z3', '--z5', '--z6'];
     const sec = [0, 0, 0, 0, 0];
-    Store.acts.filter(a => a.start > now - 28 * 86400).forEach(a => {
-      if (a.g && a.g.hrz) a.g.hrz.forEach((v, i) => { sec[i] += v; });
-      else if (a.series && a.series.hr) a.series.hr.forEach(v => { if (v == null || v < f[0]) return; let i = 4; while (i > 0 && v < f[i]) i--; sec[i] += a.series.step; });
-    });
+    Store.acts.filter(a => a.start > now - 28 * 86400 && a.series && a.series.hr).forEach(a => a.series.hr.forEach(v => {
+      if (!v) return; let i = 4; while (i > 0 && v < f[i]) i--; sec[i] += a.series.step;
+    }));
     const tot = sec.reduce((a, b) => a + b, 0);
+    const range = i => i === 0 ? `bis ${f[1] - 1}` : i < 4 ? `${f[i]}–${f[i + 1] - 1}` : `ab ${f[4]}`;
     zones = `<div class="tblwrap"><table><thead><tr><th>Zone</th><th class="r">Puls</th><th class="r">Zeit 4 Wochen</th><th class="r">Anteil</th></tr></thead><tbody>${names.map((n, i) =>
-      `<tr><td><i class="sw" style="--c:var(${cols[i]})"></i> Z${i + 1} ${n}</td><td class="r">${f[i]}–${i < 4 ? f[i + 1] - 1 : (g.max ? Math.round(g.max) : '')}</td><td class="r">${fmtDur(sec[i])}</td><td class="r">${tot ? Math.round(sec[i] / tot * 100) + ' %' : '–'}</td></tr>`).join('')}</tbody></table></div>`;
+      `<tr><td><i class="sw" style="--c:var(${cols[i]})"></i> Z${i + 1} ${n}</td><td class="r">${range(i)}</td><td class="r">${fmtDur(sec[i])}</td><td class="r">${tot ? Math.round(sec[i] / tot * 100) + ' %' : '–'}</td></tr>`).join('')}</tbody></table></div>`;
     if (tot > 3600) {
       const low = (sec[0] + sec[1]) / tot, hi = (sec[3] + sec[4]) / tot;
       if (low < .6) tips.push(`Nur ${Math.round(low * 100)} % deiner Zeit in Z1–Z2. Für die Grundlage sollten es eher 70–80 % sein: Rolle A und B ruhiger fahren.`);
       else if (hi > .05) tips.push(`Gute Verteilung: ${Math.round(low * 100)} % locker, ${Math.round(hi * 100)} % hart. So soll ein Ausdauerplan aussehen.`);
     }
   }
+  const zNote = !Z ? '' : Z.method === 'lthr'
+    ? `Selbst berechnet aus deinem FTP-Test am ${fmtDM(new Date(Z.date * 1000))}: Laktatschwelle ${Z.lthr} (95 % des Ø-Pulses der härtesten 20 min), Rad-Zonen nach Friel.`
+    : `Selbst berechnet nach Karvonen aus deinem höchsten gemessenen Puls ${Z.max} und ${Z.restMeasured ? 'deinem Ruhepuls ' + Z.rest + ' (Ø 14 Tage)' : 'einem angenommenen Ruhepuls von 60'}. Nach dem FTP-Test rechnet die App genauer über deine Laktatschwelle.`;
   const errs = g ? Object.keys(g.errors) : [];
-  return `<div class="card"><div class="card-h"><h3>Garmin-Werte</h3><span class="muted">${g && g.fetched ? 'Stand ' + fmtDM(parseISO(g.fetched)) : ''}</span></div>
+  return `<div class="card"><div class="card-h"><h3>${g || vo2.length ? 'Garmin-Werte und Pulszonen' : 'Pulszonen'}</h3><span class="muted">${g && g.fetched ? 'Stand ' + fmtDM(parseISO(g.fetched)) : ''}</span></div>
     ${tiles.length ? `<div class="tiles">${tiles.join('')}</div>` : ''}
     ${tips.length ? `<ul class="insights" style="margin-top:14px">${tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-    ${zones ? `<h3 style="margin:16px 0 6px">Deine Pulszonen${g.sport && !/default/i.test(g.sport) ? ' (' + esc(String(g.sport).toLowerCase()) + ')' : ''}</h3>${zones}<p class="note">Aus Garmin Connect. Die Spinning-Auswertung nutzt diese Zonen: Z5 zählt als hart, Z4 als Schwelle.</p>` : ''}
+    ${zones ? `<h3 style="margin:16px 0 6px">Deine Pulszonen</h3>${zones}<p class="note">${esc(zNote)} Die Spinning-Auswertung nutzt diese Zonen: Z5 zählt als hart, Z4 als Schwelle.</p>` : ''}
     ${errs.length ? `<p class="note">Nicht geladen: ${esc(errs.join(', '))}.</p>` : ''}</div>`;
 }
 function renderProgress() {
