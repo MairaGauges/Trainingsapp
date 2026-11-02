@@ -8,7 +8,7 @@ ZWO = os.path.join(ROOT, "dist", "zwo")
 DIST = os.path.join(ROOT, "dist")
 WEB = os.path.join(ROOT, "web")
 sys.path.insert(0, HERE)
-from plan_data import phases  # noqa: E402
+from plan_data import phases, C_TXT, D_TXT, D_TXT_DELOAD  # noqa: E402
 
 rows = {}
 for _title, ph_rows in phases:
@@ -57,21 +57,6 @@ FEIERTAGE = {date(2026, 12, 25): "1. Weihnachtstag", date(2026, 12, 26): "2. Wei
              date(2027, 1, 6): "Heilige Drei Könige", date(2027, 3, 26): "Karfreitag", date(2027, 3, 29): "Ostermontag",
              date(2027, 5, 1): "Tag der Arbeit"}
 FREI = {date(2027, 1, 3): "Geburtstag"}  # keine Einheit an diesen Tagen
-# Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15
-C_TXT = {
-    15: "60 min: 15' einfahren, 5×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
-    16: "50 min: 15' einfahren, 3×3' @ 210 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
-    17: "65 min: 15' einfahren, 5×4' @ 215 W, <b>Pause 4' @ 110 W</b>, Rest Z2.",
-    18: "60 min: 15' einfahren, 3 Sätze 8× 30\" @ 270 W / 30\" @ 110 W, <b>Satzpause 5' @ 110 W</b>, Rest Z2.",
-    19: "60 min Z2 mit 4×30\" @ 230 W, <b>dazwischen 90\" locker</b>. Tag nach dem FTP-Test, nicht mehr.",
-    20: "50 min: 15' einfahren, 3×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
-    21: "70 min: 15' einfahren, 4×6' im Wechsel 2' @ 205 W / 1' @ 175 W, <b>Pause 4' @ 110 W</b>, Rest Z2. Übt Tempowechsel am Anstieg.",
-    22: "70 min: 15' einfahren, 5×4' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
-    23: "65 min: 15' einfahren, 6×3' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
-    24: "50 min: 15' einfahren, 3×2' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2. Kurz vor dem Trainingslager.",
-}
-D_TXT = "45 min locker mit 4×1' @ 130 W bei 105 U/min, <b>Pause 2' @ 115 W</b>. Aktive Erholung statt Schwimmen."
-D_TXT_DELOAD = "40 min ganz locker, Z1–Z2 (100–130 W). Statt Schwimmen."
 TEST = {7, 13, 19}
 
 weeks = []

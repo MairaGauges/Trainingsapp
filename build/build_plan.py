@@ -52,7 +52,7 @@ def tbl(data, widths, extra=None, header=True):
     return t
 
 
-from plan_data import phases, TEST_A  # noqa: E402
+from plan_data import phases, TEST_A, C_TXT, D_TXT, D_TXT_DELOAD, DI  # noqa: E402
 
 # ---------------------------------------------------------------- Story
 story = []
@@ -63,8 +63,8 @@ story.append(P("Radmarathon-Jedermann 92 km, ca. 1300 hm · Rennen am 1. Mai 202
 story.append(P("Wochenstruktur", h2))
 week = [[P(x, hdr) for x in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]],
         [P(x, small) for x in [
-            "Rolle <b>A</b> (Z2, optional)", "Spinning (Intervalle, 1 h)",
-            "Kraft 1 (Beine, Ganzkörper)", "Schwimmen",
+            "Rolle <b>A</b> (Z2, optional)", "Spinning (Intervalle, 1 h); ab 8.2. Rolle <b>C</b> (Intervalle)",
+            "Kraft 1 (Beine, Ganzkörper)", "Schwimmen; ab 8.2. Rolle <b>D</b> (locker, optional)",
             "frei / 15 min Mobility",
             "Rolle <b>B</b> (lang, Z2 mit Tempoblöcken), danach 15 min Stabi",
             "Kraft 2 (Oberkörper, Rumpf)"]]]
@@ -103,14 +103,26 @@ story.append(P("<b>Legende:</b> grün = Entlastungswoche (kürzer, A nur locker)
 
 story.append(PageBreak())
 
-cw = [1.2*cm, 1.6*cm, 1.2*cm, 10.9*cm, 10.9*cm]
+cw = [1.2*cm, 1.6*cm, 7.7*cm, 7.7*cm, 7.6*cm]
+
+
+def di(w, typ):
+    if w in DI:
+        return DI[w]
+    if w in C_TXT:
+        d = D_TXT_DELOAD if typ == "d" else D_TXT
+        return "<b>Rolle C</b>: " + C_TXT[w] + "<br/><b>Do Rolle D</b> (optional): " + d
+    if w == 25:
+        return "Ruhetag (Trainingslager)"
+    return "Spinning (Kurs, 1 h)"
+
+
 for title, rows in phases:
     block = [P(title, h2)]
-    data = [[P(x, hdr) for x in ["Wo.", "ab", "Pflicht", "Fr: Einheit A (optional)", "Sa: Einheit B"]]]
+    data = [[P(x, hdr) for x in ["Wo.", "ab", "Mo: Einheit A (optional)", "Di: Spinning / Rolle C", "Sa: Einheit B"]]]
     extra = []
     for i, (w, d, n, a, b, typ) in enumerate(rows, start=1):
-        data.append([P(f"<b>{w}</b>", small), P(d, small), P(str(n), small),
-                     P(a, small), P(b, small)])
+        data.append([P(f"<b>{w}</b>", small), P(d, small), P(a, small), P(di(w, typ), small), P(b, small)])
         if typ == "d":
             extra.append(("BACKGROUND", (0, i), (-1, i), DELOAD))
         elif typ == "t":
@@ -166,7 +178,7 @@ for t in [
     "Stunde üben, damit der Magen im Rennen mitmacht.",
     "<b>Rolle:</b> Ventilator und Handtuch sind Pflicht, sonst sinkt die Leistung spürbar.",
     "<b>Stabi nach Rolle B:</b> ca. 15 min Rumpf und Hüfte direkt nach der Fahrt (z. B. Unterarmstütz, Seitstütz, Bird Dog, Glute Bridge, Rückenstrecker). Übungen in der App anpassbar.",
-    "<b>Müdigkeit:</b> Priorität haben Spinning und Einheit B. Zuerst Kraft 2 streichen, "
+    "<b>Müdigkeit:</b> Priorität haben Spinning (ab 8.2. Rolle C) und Einheit B. Zuerst Kraft 2 streichen, "
     "dann Einheit A, dann Kraft 1 kürzen.",
 ]:
     story.append(P("• " + t, body))

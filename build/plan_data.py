@@ -6,6 +6,26 @@ TEST_A = ("<b>FTP-Test</b> (Ramp- oder 20-min-Test): 15' einfahren, 3×1' @ 200 
           "mit je <b>1' Pause</b> @ 110 W, <b>5' locker</b> @ 110 W, Test, "
           "10' ausfahren. Danach Zonen neu berechnen.")
 
+# Dienstag: Spinning-Kurs; ab Woche 15 (8.2.) Rolle C, Donnerstag Rolle D (optional) statt Schwimmen
+# Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15
+C_TXT = {
+    15: "60 min: 15' einfahren, 5×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    16: "50 min: 15' einfahren, 3×3' @ 210 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    17: "65 min: 15' einfahren, 5×4' @ 215 W, <b>Pause 4' @ 110 W</b>, Rest Z2.",
+    18: "60 min: 15' einfahren, 3 Sätze 8× 30\" @ 270 W / 30\" @ 110 W, <b>Satzpause 5' @ 110 W</b>, Rest Z2.",
+    19: "60 min Z2 mit 4×30\" @ 230 W, <b>dazwischen 90\" locker</b>. Tag nach dem FTP-Test, nicht mehr.",
+    20: "50 min: 15' einfahren, 3×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    21: "70 min: 15' einfahren, 4×6' im Wechsel 2' @ 205 W / 1' @ 175 W, <b>Pause 4' @ 110 W</b>, Rest Z2. Übt Tempowechsel am Anstieg.",
+    22: "70 min: 15' einfahren, 5×4' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    23: "65 min: 15' einfahren, 6×3' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    24: "50 min: 15' einfahren, 3×2' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2. Kurz vor dem Trainingslager.",
+}
+D_TXT = "45 min locker mit 4×1' @ 130 W bei 105 U/min, <b>Pause 2' @ 115 W</b>. Aktive Erholung statt Schwimmen."
+D_TXT_DELOAD = "40 min ganz locker, Z1–Z2 (100–130 W). Statt Schwimmen."
+DI = {2: "<b>Spinning · FTP-Test</b>: 20 min so gleichmäßig hart wie möglich",
+      8: "Frei: kein Spinning. Mo 21.12. Intervalle im Gym (siehe links), Do 24.12. 45 min locker im Gym (optional), 25./26.12. frei",
+      9: "Spinning. <b>So 3.1. Geburtstag: frei</b>, Kraft 2 entfällt"}
+
 phases = []
 
 phases.append(('Phase 1: Grundlage (2.11. – 13.12.)', [
@@ -19,7 +39,7 @@ phases.append(('Phase 1: Grundlage (2.11. – 13.12.)', [
 
 phases.append(('Phase 2: Aufbau (14.12. – 24.1.)', [
     (7, '14.12.', 1, TEST_A, "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", 't'),
-    (8, '21.12.', 1, 'Weihnachten, Rad im Gym: Do 24.12. 45 min ganz locker, Z1–Z2 (100–130 W). Optional. Kein Spinning, kein Schwimmen, 25./26.12. frei.', "Mo 21.12. im Gym, 70 min: 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
+    (8, '21.12.', 1, "Im Gym statt Rolle B: 70 min, 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'Frei (Weihnachten). Rolle B ist auf Montag gewandert.', 'd'),
     (9, '28.12.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", ''),
     (10, '4.1.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min: 15' einfahren, 2×15' @ 159 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
     (11, '11.1.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×6' @ 157 W, <b>Pause 5' @ 120 W</b>", ''),
