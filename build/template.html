@@ -892,7 +892,7 @@ function parseAny(name, u8) {
    Profil (Pulszonen, VO2max, HRV, Ruhepuls), fehlende Aktivitäten der letzten 120 Tage, Garmins Kennzahlen je Aktivität */
 const G_DAYS = 120;
 const gTs = x => { const g = x.g && x.g.startTimeGMT; if (g) return Date.parse(g.replace(' ', 'T') + 'Z') / 1000; return x.start ? Date.parse(x.start.replace(' ', 'T')) / 1000 : NaN; };
-const actNear = ts => Store.acts.find(a => a.src !== 'strava' && Math.abs(a.start - ts) < 180);
+const actNear = ts => Store.acts.find(a => !(a.src && !(a.series && a.series.hr)) && Math.abs(a.start - ts) < 180);
 function gCompact(g) {
   const hrz = [1, 2, 3, 4, 5].map(i => Math.round(g['hrTimeInZone_' + i] || 0));
   const o = { vo2: g.vO2MaxValue || null, te: g.aerobicTrainingEffect || null, ate: g.anaerobicTrainingEffect || null,
@@ -943,7 +943,8 @@ async function garminSync() {
 const overlap = (a, b) => { const st = Math.max(a.start, b.start), en = Math.min(a.start + (a.dur || 0), b.start + (b.dur || 0)); return Math.max(0, en - st) / Math.max(1, Math.min(a.dur || 1, b.dur || 1)); };
 // Leistung (und Trittfrequenz) einer Strava-Fahrt in eine Garmin-Aufzeichnung derselben Zeit übernehmen
 function mergeInto(g, sa) {
-  const m = Object.assign({}, g, { avgP: sa.avgP, np: sa.np, maxP: sa.maxP, sid: sa.sid, pw: 'strava', dev: sa.dev });
+  const m = Object.assign({}, g, { avgP: sa.avgP, np: sa.np, maxP: sa.maxP, pw: sa.pw || 'datei', dev: sa.dev });
+  if (sa.sid) m.sid = sa.sid;
   if (sa.cad) m.cad = sa.cad;
   if (g.series && g.series.step && sa.series && sa.series.p) {
     const N = (g.series.hr || g.series.p || []).length;
@@ -957,7 +958,7 @@ function mergeInto(g, sa) {
 // Nur-Strava-Fahrten mit später geladenen Garmin-Aufzeichnungen zusammenführen
 async function mergeStrava() {
   const merged = [], gone = [];
-  for (const sa of Store.acts.filter(a => a.src === 'strava')) {
+  for (const sa of Store.acts.filter(a => a.src && a.avgP)) {
     const g = Store.acts.find(x => !x.src && x.sport === 'rad' && !x.avgP && overlap(x, sa) > .5);
     if (g) { merged.push(mergeInto(g, sa)); gone.push(sa.id); }
   }
@@ -992,7 +993,7 @@ async function stravaSync() {
       if (cads.length) sa.cad = Math.round(cads.reduce((x, y) => x + y, 0) / cads.length);
       const g = Store.acts.find(x => !x.src && x.sport === 'rad' && !x.avgP && overlap(x, sa) > .5);
       if (g) { await storeAdd([mergeInto(g, sa)]); merged++; }
-      else { sa.id = 's' + a.id; sa.src = 'strava'; await storeAdd([sa]); added++; }
+      else { sa.id = 's' + a.id; if (!(sa.series && sa.series.hr)) sa.src = 'strava'; await storeAdd([sa]); added++; }
     }
     render();
     toast(`Strava: ${merged} mit Garmin zusammengeführt, ${added} neu${skipped ? ', ' + skipped + ' schon vorhanden' : ''}.`);
@@ -1021,10 +1022,18 @@ async function importFiles(files) {
       const entries = /\.zip$/i.test(f.name) ? await readZip(buf) : [{ name: f.name, data: new Uint8Array(buf) }];
       if (!entries.length) throw new Error('Die ZIP-Datei enthält keine FIT-, TCX- oder GPX-Datei');
       for (const e of entries) {
-        const acts = parseAny(e.name, e.data);
-        await storeAdd(acts);
-        lastImport.push({ ok: true, name: e.name, acts });
-        selAct = acts[0].id;
+        const acts = parseAny(e.name, e.data), keep = [];
+        for (const a of acts) {
+          // Datei mit Leistung (z. B. ICG-Spinning aus Strava) und eine Garmin-Aufzeichnung derselben Zeit ohne Leistung: zusammenführen
+          const g = a.sport === 'rad' && a.avgP ? Store.acts.find(x => x.sport === 'rad' && !x.avgP && x.id !== a.id && overlap(x, a) > .5) : null;
+          if (g) { keep.push(mergeInto(g, Object.assign({}, a, { pw: 'datei', dev: e.name }))); a.merged = true; continue; }
+          if (a.sport === 'rad' && a.avgP && !(a.series && a.series.hr)) a.src = 'datei';   // nur Leistung: wartet auf die Garmin-Aufzeichnung
+          keep.push(a);
+        }
+        await storeAdd(keep);
+        await mergeStrava();   // umgekehrt: Garmin-Datei zu einer schon hochgeladenen Leistungs-Datei
+        lastImport.push({ ok: true, name: e.name, acts, merged: acts.some(a => a.merged) });
+        selAct = keep[0].id;
       }
     } catch (err) {
       lastImport.push({ ok: false, name: f.name, msg: (err && err.message) || String(err) });
@@ -1298,7 +1307,7 @@ function renderGarmin() {
   const cur = list.find(a => a.id === selAct);
   const modeTxt = Store.mode === 'db' ? 'Gespeichert in diesem Dashboard.' : Store.mode === 'local' ? 'Gespeichert nur in diesem Browser.' : Store.mode === 'memory' ? 'Nur für diese Sitzung gespeichert.' : 'Speicher wird verbunden …';
   const logHtml = lastImport.length ? `<ul class="log">${lastImport.map(l => l.ok
-      ? `<li><span class="ok">✓</span><span>${esc(l.name)}: ${l.acts.map(a => SPORT[a.sport] + ', ' + fmtDur(a.dur) + ', ' + fmtDM(new Date(a.start * 1000))).join(' | ')}</span></li>`
+      ? `<li><span class="ok">✓</span><span>${esc(l.name)}: ${l.acts.map(a => SPORT[a.sport] + ', ' + fmtDur(a.dur) + ', ' + fmtDM(new Date(a.start * 1000))).join(' | ')}${l.merged ? ' · Leistung in die Garmin-Aufzeichnung übernommen' : ''}</span></li>`
       : `<li><span class="bad">✗</span><span>${esc(l.name)}: ${esc(l.msg)}</span></li>`).join('')}</ul>` : '';
   const rows = list.map(a => {
     const t = tssOf(a), d = new Date(a.start * 1000);
