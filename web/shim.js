@@ -103,7 +103,8 @@
     async load() {
       const v = await this.version(), out = {}, page = 1000;
       for (let off = 0; ; off += page) {
-        const rows = await rest('docs?select=col,id,doc&order=col,id&limit=' + page + '&offset=' + off);
+        // col=strava hält den Strava-Token: bleibt auf dem Server (nur api/strava.py liest ihn)
+        const rows = await rest('docs?select=col,id,doc&col=neq.strava&order=col,id&limit=' + page + '&offset=' + off);
         rows.forEach(r => { (out[r.col] || (out[r.col] = {}))[r.id] = r.doc; });
         if (rows.length < page) break;
       }
@@ -265,6 +266,11 @@
   // Garmin-Abruf und „An MyWhoosh senden“ (intervals.icu) nur anzeigen, wenn der Server einen Schlüssel kennt
   window.GARMIN_SYNC = false;
   window.INTERVALS_SYNC = false;
+  window.STRAVA = null;   // { configured, connected } von api/strava/status
+  ready.then(() => window.apiFetch('api/strava/status', { cache: 'no-store' }))
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { window.STRAVA = j; if (j && j.configured && typeof window.render === 'function') window.render(); })
+    .catch(() => {});
   [['garmin', 'GARMIN_SYNC'], ['intervals', 'INTERVALS_SYNC']].forEach(([svc, flag]) =>
     ready.then(() => window.apiFetch('api/' + svc + '/status', { cache: 'no-store' }))
       .then(r => r.ok ? r.json() : {})

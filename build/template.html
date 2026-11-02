@@ -892,7 +892,7 @@ function parseAny(name, u8) {
    Profil (Pulszonen, VO2max, HRV, Ruhepuls), fehlende Aktivitäten der letzten 120 Tage, Garmins Kennzahlen je Aktivität */
 const G_DAYS = 120;
 const gTs = x => { const g = x.g && x.g.startTimeGMT; if (g) return Date.parse(g.replace(' ', 'T') + 'Z') / 1000; return x.start ? Date.parse(x.start.replace(' ', 'T')) / 1000 : NaN; };
-const actNear = ts => Store.acts.find(a => Math.abs(a.start - ts) < 180);
+const actNear = ts => Store.acts.find(a => a.src !== 'strava' && Math.abs(a.start - ts) < 180);
 function gCompact(g) {
   const hrz = [1, 2, 3, 4, 5].map(i => Math.round(g['hrTimeInZone_' + i] || 0));
   const o = { vo2: g.vO2MaxValue || null, te: g.aerobicTrainingEffect || null, ate: g.anaerobicTrainingEffect || null,
@@ -934,9 +934,83 @@ async function garminSync() {
       if (Object.keys(g).length && JSON.stringify(a.g || {}) !== JSON.stringify(g)) upd.push(Object.assign({}, a, { g }));
     }
     if (upd.length) await storeAdd(upd);
+    await mergeStrava();
     render();
     toast(`Garmin: ${files.length} neue Aktivitäten${upd.length ? ', ' + upd.length + ' mit Garmin-Werten ergänzt' : ''}${failed.length ? ', ' + failed.length + ' fehlgeschlagen' : ''}${Store.gprof ? ', Profil aktualisiert' : ''}.`);
   } catch (e) { toast('Garmin: ' + ((e && e.message) || e)); }
+}
+/* ---------- Strava (ICG-Rad über die ICG-App): Leistung zum Spinning ---------- */
+const overlap = (a, b) => { const st = Math.max(a.start, b.start), en = Math.min(a.start + (a.dur || 0), b.start + (b.dur || 0)); return Math.max(0, en - st) / Math.max(1, Math.min(a.dur || 1, b.dur || 1)); };
+// Leistung (und Trittfrequenz) einer Strava-Fahrt in eine Garmin-Aufzeichnung derselben Zeit übernehmen
+function mergeInto(g, sa) {
+  const m = Object.assign({}, g, { avgP: sa.avgP, np: sa.np, maxP: sa.maxP, sid: sa.sid, pw: 'strava', dev: sa.dev });
+  if (sa.cad) m.cad = sa.cad;
+  if (g.series && g.series.step && sa.series && sa.series.p) {
+    const N = (g.series.hr || g.series.p || []).length;
+    m.series = Object.assign({}, g.series, { p: Array.from({ length: N }, (_, k) => {
+      const j = Math.floor((g.start + (k + .5) * g.series.step - sa.start) / sa.series.step);
+      return j >= 0 && j < sa.series.p.length ? sa.series.p[j] : null;
+    }) });
+  } else if (sa.series) m.series = Object.assign({}, sa.series, g.series && g.series.hr ? { hr: g.series.hr } : {});
+  return m;
+}
+// Nur-Strava-Fahrten mit später geladenen Garmin-Aufzeichnungen zusammenführen
+async function mergeStrava() {
+  const merged = [], gone = [];
+  for (const sa of Store.acts.filter(a => a.src === 'strava')) {
+    const g = Store.acts.find(x => !x.src && x.sport === 'rad' && !x.avgP && overlap(x, sa) > .5);
+    if (g) { merged.push(mergeInto(g, sa)); gone.push(sa.id); }
+  }
+  if (merged.length) await storeAdd(merged);
+  for (const id of gone) await storeRemove(id);
+  return merged.length;
+}
+async function stravaSync() {
+  if (busy) return;
+  const get = window.apiFetch;
+  try {
+    toast('Hole Fahrten von Strava …');
+    const r = await get('api/strava/activities?days=' + G_DAYS);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    const list = (j.activities || []).filter(a => a.watts && /ride|cycl/i.test(a.type));
+    const todo = list.filter(a => !Store.acts.some(x => x.sid === a.id));
+    let added = 0, merged = 0, skipped = 0;
+    for (let k = 0; k < todo.length; k++) {
+      const a = todo[k], t0 = Math.round(Date.parse(a.start) / 1000);
+      // schon mit Leistung vorhanden (z. B. Rolle über Garmin): nicht doppelt anlegen
+      if (Store.acts.some(x => x.avgP && x.sport === 'rad' && overlap(x, { start: t0, dur: a.elapsed || 0 }) > .5)) { skipped++; continue; }
+      toast(`Lade Strava-Fahrt ${k + 1} von ${todo.length} …`);
+      const sr = await get('api/strava/streams/' + a.id);
+      if (!sr.ok) continue;
+      const S = await sr.json();
+      if (!S.time || !S.watts) continue;
+      const pts = S.time.map((t, i) => ({ t: t0 + t, p: S.watts[i] != null ? S.watts[i] : null, hr: S.heartrate ? S.heartrate[i] : null }));
+      const sa = buildActivity({ points: pts, start: t0, dur: a.elapsed || S.time[S.time.length - 1], elapsed: a.elapsed, sport: 'rad' });
+      const cads = (S.cadence || []).filter(v => v > 0);
+      Object.assign(sa, { sid: a.id, pw: 'strava', dev: a.device || 'Strava' });
+      if (cads.length) sa.cad = Math.round(cads.reduce((x, y) => x + y, 0) / cads.length);
+      const g = Store.acts.find(x => !x.src && x.sport === 'rad' && !x.avgP && overlap(x, sa) > .5);
+      if (g) { await storeAdd([mergeInto(g, sa)]); merged++; }
+      else { sa.id = 's' + a.id; sa.src = 'strava'; await storeAdd([sa]); added++; }
+    }
+    render();
+    toast(`Strava: ${merged} mit Garmin zusammengeführt, ${added} neu${skipped ? ', ' + skipped + ' schon vorhanden' : ''}.`);
+  } catch (e) { toast('Strava: ' + ((e && e.message) || e)); }
+}
+async function stravaConnectReturn() {
+  const h = location.hash;
+  if (!/^#strava/.test(h)) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (h === '#strava-error') { toast('Strava: Freigabe abgebrochen oder ohne Zugriff auf Aktivitäten.'); return; }
+  try {
+    const r = await window.apiFetch('api/strava/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: decodeURIComponent(h.slice(8)) }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    window.STRAVA = { configured: true, connected: true };
+    view = 'garmin'; render();
+    toast('Strava verbunden. Tippe auf „Von Strava laden“.');
+  } catch (e) { toast('Strava: ' + ((e && e.message) || e)); }
 }
 async function importFiles(files) {
   if (busy) return;
@@ -1259,6 +1333,9 @@ function renderGarmin() {
       <div class="card">
         <div class="card-h"><h3>Garmin-Daten</h3></div>
         ${window.GARMIN_SYNC ? `<button class="btn" style="width:100%;margin-bottom:10px" data-action="g-sync"${busy ? ' disabled' : ''}>Von Garmin laden · Profil und ${G_DAYS} Tage</button>` : ''}
+        ${window.STRAVA && window.STRAVA.configured ? (window.STRAVA.connected
+          ? `<button class="btn ghost" style="width:100%;margin-bottom:10px" data-action="s-sync"${busy ? ' disabled' : ''}>Von Strava laden · ICG-Spinning mit Watt</button>`
+          : `<a class="btn ghost" style="width:100%;margin-bottom:10px;text-decoration:none" href="api/strava/auth">Strava verbinden (für die ICG-App)</a>`) : ''}
         <input class="sr" type="file" id="fileIn" accept=".fit,.tcx,.gpx,.zip" multiple${busy || Store.mode === 'pending' ? ' disabled' : ''}>
         <label class="drop" for="fileIn" id="drop"><b>${busy ? 'Wird gelesen …' : 'Dateien auswählen oder hierher ziehen'}</b><span class="muted">FIT, TCX, GPX oder die ZIP-Datei aus Garmin Connect</span></label>
         ${logHtml}
@@ -2351,6 +2428,7 @@ document.addEventListener('click', ev => {
     }
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
+    else if (a === 's-sync') stravaSync();
     else if (a === 'push-test') pushTest();
     else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
     else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
@@ -2455,5 +2533,6 @@ initStore();
   try { DL = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; } catch (e) { DL = null; }
   if (DL === undefined) DL = null;
   render();
+  if (window.apiFetch) stravaConnectReturn();   // Rückkehr von der Strava-Freigabe (#strava=…)
 })();
 </script>

@@ -15,7 +15,7 @@ Läuft auf Vercel mit Supabase als Speicher, alternativ auf dem eigenen Rechner 
 | `build/build_dash.py`, `build/template.html` | bauen die App `web/index.html` und die Artifact-Variante `dist/artifact.html` |
 | `server/server.py` | kleiner Server (nur Standardbibliothek): App ausliefern, Daten speichern, Garmin abfragen |
 | `server/garmin_client.py` | Garmin-Abruf, genutzt vom Server und von der Vercel-Funktion |
-| `api/garmin.py`, `api/intervals.py`, `vercel.json` | Vercel: Build, Auslieferung von `web/`, Garmin und intervals.icu |
+| `api/garmin.py`, `api/intervals.py`, `api/strava.py`, `vercel.json` | Vercel: Build, Auslieferung von `web/`, Garmin und intervals.icu |
 | `server/intervals_client.py`, `server/sb_auth.py` | intervals.icu-Abruf und Anmeldeprüfung der Vercel-Funktionen |
 | `supabase/schema.sql` | Tabelle `docs` mit Zeilenschutz (einmal im SQL Editor ausführen) |
 | `tools/import_supabase.py` | vorhandene Daten (`store.json`-Format) nach Supabase übernehmen |
@@ -57,6 +57,20 @@ MyWhoosh hat keine öffentliche Schnittstelle, übernimmt aber geplante Workouts
 
 Grenzen (Berichte aus dem intervals.icu-Forum, 2025): MyWhoosh übernimmt nur die nächsten 7 Tage, und
 Kadenz-Vorgaben (W06, W13, W15, W17 Sa) kommen eventuell nicht mit; diese dann als Datei importieren.
+
+### Spinning vom ICG-Rad (über Strava)
+
+Die ICG-Training-App lädt Workouts zu Strava hoch. Die App holt sie dort ab und führt die Leistung mit der
+Garmin-Aufzeichnung derselben Zeit (Puls) zusammen.
+
+1. In der ICG-App Strava verbinden (besser mit Strava-E-Mail und Passwort als über „Mit Google anmelden“).
+2. Auf https://www.strava.com/settings/api eine API-Anwendung anlegen. „Authorization Callback Domain“ = deine
+   Vercel-Domain ohne https:// (z. B. `trainingsapp-xyz.vercel.app`).
+3. In Vercel `STRAVA_CLIENT_ID` und `STRAVA_CLIENT_SECRET` eintragen, neu deployen.
+4. In der App im Tab Garmin auf „Strava verbinden“ tippen, bei Strava erlauben. Danach „Von Strava laden“.
+
+Der Refresh-Token liegt in deiner eigenen Supabase-Zeile (`docs`, col `strava`) und wird nie an den Browser ausgeliefert.
+Nur auf Vercel verfügbar, nicht mit dem eigenen Server.
 
 ## Schnellstart (eigener Rechner)
 

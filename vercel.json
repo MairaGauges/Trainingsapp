@@ -12,6 +12,10 @@
     "api/intervals.py": {
       "includeFiles": "server/*.py",
       "maxDuration": 30
+    },
+    "api/strava.py": {
+      "includeFiles": "server/*.py",
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -22,6 +26,10 @@
     {
       "source": "/api/intervals/:path*",
       "destination": "/api/intervals?p=:path*"
+    },
+    {
+      "source": "/api/strava/:path*",
+      "destination": "/api/strava?p=:path*"
     }
   ],
   "headers": [
