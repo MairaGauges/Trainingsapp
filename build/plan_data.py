@@ -19,7 +19,7 @@ phases.append(('Phase 1: Grundlage (2.11. – 13.12.)', [
 
 phases.append(('Phase 2: Aufbau (14.12. – 24.1.)', [
     (7, '14.12.', 1, TEST_A, "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", 't'),
-    (8, '21.12.', 1, '45 min ganz locker, Z1–Z2 (100–130 W). Optional.', "70 min: 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
+    (8, '21.12.', 1, 'Weihnachten, Rad im Gym: Do 24.12. 45 min ganz locker, Z1–Z2 (100–130 W). Optional. Kein Spinning, kein Schwimmen, 25./26.12. frei.', "Mo 21.12. im Gym, 70 min: 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
     (9, '28.12.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", ''),
     (10, '4.1.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min: 15' einfahren, 2×15' @ 159 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
     (11, '11.1.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×6' @ 157 W, <b>Pause 5' @ 120 W</b>", ''),

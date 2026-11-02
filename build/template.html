@@ -1168,7 +1168,7 @@ function renderWeek() {
     const info = workoutInfo(s.file);
     const orig = s.adapt && s.adapt.orig ? `<button class="btn ghost sm" data-action="zip-one" data-file="${esc(s.adapt.orig)}"${DL ? '' : ' disabled'}>Original laden</button>` : '';
     const ps = pushState(w, i), past = pushSig(w, i).past;
-    const push = window.INTERVALS_SYNC ? `<div class="wo-m"><span>${ps === 'sent' ? '✓ an MyWhoosh gesendet' : ps === 'changed' ? 'Geändert seit dem Senden (Tag oder Workout)' : past ? 'Termin vorbei' : 'Noch nicht an MyWhoosh gesendet'}</span>
+    const push = s.gym ? '<div class="wo-m"><span>Im Gym nach diesem Ablauf fahren, nicht für MyWhoosh</span></div>' : window.INTERVALS_SYNC ? `<div class="wo-m"><span>${ps === 'sent' ? '✓ an MyWhoosh gesendet' : ps === 'changed' ? 'Geändert seit dem Senden (Tag oder Workout)' : past ? 'Termin vorbei' : 'Noch nicht an MyWhoosh gesendet'}</span>
       <button class="btn ${ps === 'changed' ? '' : 'ghost '}sm" data-action="push-one" data-i="${i}"${pushing || past ? ' disabled' : ''}>${ps === 'sent' ? 'Erneut senden' : ps === 'changed' ? 'Neu senden' : 'An MyWhoosh senden'}</button></div>` : '';
     return `<div class="wo"><div class="wo-h"><b>${DOW[dayOfSess(w, i)]} · ${esc(s.slot)}${s.adapt && s.adapt.orig ? ' · angepasst' : ''}</b><span class="muted tab">${Math.round(info.total / 60)} min · ca. ${Math.round(info.tss)} TSS</span></div>
       <div class="muted" style="font-size:13px">${esc(woTitle(s.file))}</div>
@@ -1195,7 +1195,7 @@ function renderWeek() {
         <div class="card-h"><h3>Workouts für MyWhoosh</h3></div>
         <button class="btn" style="width:100%" data-action="zip-week"${DL && files.length ? '' : ' disabled'}>${w.kind === 'taper' ? 'Taper' : 'Woche ' + w.n} als ZIP laden · ${files.length} ${files.length === 1 ? 'Datei' : 'Dateien'}</button>
         ${window.INTERVALS_SYNC ? (() => {
-          const open = files.filter(({ i }) => !pushSig(w, i).past && pushState(w, i) !== 'sent'), stale = stalePushes(w).length;
+          const open = files.filter(({ s, i }) => !s.gym && !pushSig(w, i).past && pushState(w, i) !== 'sent'), stale = stalePushes(w).length;
           const lbl = pushing ? 'Wird gesendet …' : open.length ? open.length + ' ' + (open.length === 1 ? 'Workout' : 'Workouts') + ' an MyWhoosh senden' : stale ? 'Veraltete Termine entfernen' : 'Alles an MyWhoosh gesendet';
           return `<button class="btn" style="width:100%;margin-top:8px" data-action="push-week"${pushing || !(open.length || stale) ? ' disabled' : ''}>${lbl}</button>
             ${stale ? `<p class="note">${stale === 1 ? 'Ein früher gesendeter Termin passt nicht mehr zum Plan und wird' : stale + ' früher gesendete Termine passen nicht mehr zum Plan und werden'} dabei aus intervals.icu entfernt.</p>` : ''}
@@ -2070,7 +2070,8 @@ function pushSig(w, i) {
 // Gesendete Termine dieser Woche, deren Einheit es nicht mehr gibt (z. B. nach einer Planänderung)
 const stalePushes = w => Object.keys(Store.pushes).filter(k => {
   const m = /^w(\d\d)_d(\d)$/.exec(k);
-  return m && Number(m[1]) === w.n && !(sessOf(w, Number(m[2])) || {}).file;
+  const s = sessOf(w, Number(m && m[2])) || {};
+  return m && Number(m[1]) === w.n && (!s.file || s.gym);
 });
 function pushState(w, i) {
   const p = Store.pushes[dayKey(w.n, i)];
@@ -2474,7 +2475,7 @@ document.addEventListener('click', ev => {
     else if (a === 's-sync') stravaSync();
     else if (a === 'push-test') pushTest();
     else if (a === 'push-one') pushWorkouts(W[sel], [Number(act.dataset.i)]);
-    else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
+    else if (a === 'push-week') { const w = W[sel]; pushWorkouts(w, sessionsOf(w).map((s, i) => i).filter(i => sessOf(w, i).file && !sessOf(w, i).gym && !pushSig(w, i).past && pushState(w, i) !== 'sent')); }
     else if (a === 'logout') window.ef27Logout();
     else if (a === 'p-edit') { packEdit = !packEdit; renderPack(); const b = $('#pack [data-action="p-edit"]'); if (b) b.focus(); }
     else if (a === 'ftp-take') { const v = Number(act.dataset.v); if (v >= 80 && v <= 500) storeFtp(v).then(() => { render(); toast('FTP auf ' + v + ' W gesetzt. In MyWhoosh auch eintragen.'); }); }

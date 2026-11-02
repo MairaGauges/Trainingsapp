@@ -92,6 +92,17 @@ for n in range(1, 27):
         S[5] = dict(type="race", sport="rad", title="Rennen · Eschborn-Frankfurt", detail="92 km, ca. 1.300 Höhenmeter. Verpflegung: 60–80 g Kohlenhydrate pro Stunde.", tag="Renntag")
         S[6] = dict(type="frei", title="Erholung", detail="Frei.", tag="frei")
         note = "Rennwoche"
+    if n == 8:
+        # Weihnachten 21.–27.12.: kein Spinning, kein Schwimmen, keine Rolle (Rad im Gym), 25. und 26.12. frei
+        S[0] = dict(type="B", sport="rad", gym=True, title="Gym-Rad · Intervalle", slot="Gym-Rad", tag="lang", stabi=True, file=files.get("B"), min=mins.get(files.get("B")),
+                    detail="Statt Spinning und Rolle B, auf dem Rad im Gym: 70 min mit 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2. "
+                           "Zeigt das Rad keine Watt: Intervalle zügig, aber noch ruhig sprechbar (Tempo, Z3 nach Puls), sonst Z2.")
+        S[1] = dict(type="frei", title="Ruhetag", detail="Kein Spinning in dieser Woche.", tag="frei")
+        S[3] = dict(type="B", sport="rad", gym=True, title="Gym-Rad · locker", slot="Gym-Rad", tag="locker", opt=True, file=files.get("A"), min=mins.get(files.get("A")),
+                    detail="Statt Schwimmen: 45 min ganz locker, Z1–Z2 (100–130 W oder nach Puls). Optional.")
+        S[4] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
+        S[5] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
+        note = "Weihnachten: Rad im Gym, kein Spinning und Schwimmen, 25. und 26.12. frei"
     camp = False
     if n == 24:
         S[6] = dict(type="camp", sport="rad", title="Trainingslager · Tag 1", detail="Anreise. 1,5–2 h locker, Rad und Sitzposition prüfen. Kraft 2 entfällt.", tag="locker", tss=70)
