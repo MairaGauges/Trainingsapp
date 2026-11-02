@@ -1504,7 +1504,7 @@ function adaptA(w) {
   const iA = idxA(w), s = w.sessions[iA];
   if (!s || !s.file) return s;
   const dA = dayOfSess(w, iA);
-  if (dA <= 1) return s;   // vor oder am Spinning-Tag: nichts anzupassen
+  if (dA <= 1 || w.sessions[1].type !== 'spin') return s;   // vor oder am Spinning-Tag, oder Woche ohne Spinning: nichts anzupassen
   const other = new Set(w.sessions.map((x, k) => k).filter(k => k !== iA && canMove(w.sessions[k])).flatMap(k => garminDone(w, w.sessions[k], k).map(a => a.id)));
   const rides = Store.acts.filter(a => a.sport === 'rad' && actWeek(a) === w.n - 1 && !other.has(a.id)
     && daysBetween(w.startD, new Date(a.start * 1000)) < Math.min(dA, 4));
@@ -2045,7 +2045,7 @@ function dayOfSess(w, i) {
 }
 const sessOnDay = (w, d) => w.sessions.map((s, i) => i).filter(i => w.sessions[i].type !== 'frei' && dayOfSess(w, i) === d);
 const freeOnDay = (w, d) => w.sessions[d] && w.sessions[d].type === 'frei' ? d : null;
-const isHard = (w, k) => { const s = w.sessions[k]; return s.type === 'spin' && w.kind !== 'taper' || (s.type === 'A' && (s.tag === 'hart' || s.tag === 'Test')) || (s.type === 'kraft' && k === 2) || s.type === 'race'; };
+const isHard = (w, k) => { const s = w.sessions[k]; return s.type === 'spin' && w.kind !== 'taper' || ((s.type === 'A' || s.type === 'B') && (s.tag === 'hart' || s.tag === 'Test')) || (s.type === 'kraft' && k === 2) || s.type === 'race'; };
 function moveWarning(w, i, d) {
   if (d === i) return '';
   const s = w.sessions[i], same = sessOnDay(w, d).filter(k => k !== i);
@@ -2208,7 +2208,7 @@ function analyzeSess(w, i, s, a) {
     if (p1 && h1 && p2 && h2) {
       const dec = ((p1 / h1) - (p2 / h2)) / (p1 / h1) * 100;
       items.push(`Entkopplung ${num(dec, 1)} % (Puls ${Math.round(h1)} → ${Math.round(h2)} bei ${Math.round(p1)} → ${Math.round(p2)} W)`);
-      if (IF && IF > .78) { verdict = 'Für eine Z2-Fahrt zu hart. Ruhiger fahren, sonst fehlt die Frische fürs Spinning.'; tone = 'warn'; }
+      if (IF && IF > .78) { verdict = 'Für eine Z2-Fahrt zu hart. Ruhiger fahren, sonst fehlt die Frische für die harte Einheit.'; tone = 'warn'; }
       else if (dec < 5) { verdict = 'Puls bleibt stabil: Grundlagenausdauer gut, genau so soll Z2 sein.'; tone = 'ok'; }
       else if (dec < 8) { verdict = 'Leichte Drift gegen Ende. Normal bei längeren Fahrten, wird mit mehr Grundlage weniger.'; tone = 'ok'; }
       else { verdict = 'Deutliche Drift: der Puls läuft weg. Mögliche Gründe: zu warm, zu wenig getrunken, müde. Oder die Grundlage braucht noch Zeit.'; tone = 'warn'; }

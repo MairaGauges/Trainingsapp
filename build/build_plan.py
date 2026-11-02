@@ -74,7 +74,10 @@ story.append(P("<b>Rhythmus:</b> Plan-Start ist Montag 2.11.2026, das Rennen am 
                "fällt in Woche 26. <b>Jede Woche</b> fährst du Spinning + Einheit <b>B</b> (Samstag). "
                "Einheit <b>A</b> (Montag, Z2) ist <b>optional</b>: fahr sie, wenn du dich frisch fühlst. "
                "Die Wochen 4, 8, 12, 16, 20 und 24 sind Entlastungswochen (B verkürzt, A nur "
-               "45 min ganz locker).", body))
+               "45 min ganz locker). <b>Ab 8.2. (Woche 15)</b> gibt es kein Spinning und kein Schwimmen mehr: "
+               "Dienstag Rolle <b>C</b> (Intervalle), Donnerstag Rolle <b>D</b> (optional, locker). "
+               "An Feiertagen in Bayern fallen Spinning und Schwimmen aus. Weihnachtswoche: Rad im Gym; "
+               "frei am 25./26.12. und am 3.1.", body))
 
 story.append(P("Zonen und Pausen", h2))
 zones = [[P(x, hdr) for x in ["Zone", "% FTP", "Watt (FTP 193 W)"]],
@@ -130,7 +133,7 @@ story.append(KeepTogether([
         ]],
         [3*cm, 20*cm]),
     Spacer(1, 4),
-    P("Spinning in dieser Woche locker oder ganz auslassen. Keine Beinkraft mehr, "
+    P("Dienstag und Donnerstag frei. Keine Beinkraft mehr, "
       "höchstens 15 min Core und Mobility.", body),
 ]))
 

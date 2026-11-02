@@ -26,7 +26,7 @@ for path in sorted(glob.glob(os.path.join(ZWO, "*.zwo"))):
     t = name.split(": ", 1)[1] if ": " in name else name
     t = re.sub(r"(\d)x(\d)", r"\1×\2", t)
     titles[fn] = t
-    m = re.match(r"W(\d\d)_(Mo|Sa)_(A|B)_", fn)
+    m = re.match(r"W(\d\d)_(Mo|Di|Do|Sa)_(A|B|C|D)_", fn)
     if m:
         byweek.setdefault(int(m.group(1)), {})[m.group(3)] = fn
     m = re.match(r"Taper_(Mo|Mi|Fr)_", fn)
@@ -51,6 +51,27 @@ KRAFT2 = {
 }
 PHASE_NAMES = {1: "Phase 1 · Grundlage", 2: "Phase 2 · Aufbau", 3: "Phase 3 · Build", 4: "Phase 4 · Rennspezifisch", 5: "Taper"}
 DELOAD = {4, 8, 12, 16, 20, 24}
+SOLO = 15  # ab 8.2.2027 (Woche 15) kein Spinning und kein Schwimmen mehr
+# Gesetzliche Feiertage in Bayern im Planzeitraum: dann gibt es kein Spinning und kein Schwimmen
+FEIERTAGE = {date(2026, 12, 25): "1. Weihnachtstag", date(2026, 12, 26): "2. Weihnachtstag", date(2027, 1, 1): "Neujahr",
+             date(2027, 1, 6): "Heilige Drei Könige", date(2027, 3, 26): "Karfreitag", date(2027, 3, 29): "Ostermontag",
+             date(2027, 5, 1): "Tag der Arbeit"}
+FREI = {date(2027, 1, 3): "Geburtstag"}  # keine Einheit an diesen Tagen
+# Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15
+C_TXT = {
+    15: "60 min: 15' einfahren, 5×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    16: "50 min: 15' einfahren, 3×3' @ 210 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    17: "65 min: 15' einfahren, 5×4' @ 215 W, <b>Pause 4' @ 110 W</b>, Rest Z2.",
+    18: "60 min: 15' einfahren, 3 Sätze 8× 30\" @ 270 W / 30\" @ 110 W, <b>Satzpause 5' @ 110 W</b>, Rest Z2.",
+    19: "60 min Z2 mit 4×30\" @ 230 W, <b>dazwischen 90\" locker</b>. Tag nach dem FTP-Test, nicht mehr.",
+    20: "50 min: 15' einfahren, 3×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    21: "70 min: 15' einfahren, 4×6' im Wechsel 2' @ 205 W / 1' @ 175 W, <b>Pause 4' @ 110 W</b>, Rest Z2. Übt Tempowechsel am Anstieg.",
+    22: "70 min: 15' einfahren, 5×4' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    23: "65 min: 15' einfahren, 6×3' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
+    24: "50 min: 15' einfahren, 3×2' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2. Kurz vor dem Trainingslager.",
+}
+D_TXT = "45 min locker mit 4×1' @ 130 W bei 105 U/min, <b>Pause 2' @ 115 W</b>. Aktive Erholung statt Schwimmen."
+D_TXT_DELOAD = "40 min ganz locker, Z1–Z2 (100–130 W). Statt Schwimmen."
 TEST = {7, 13, 19}
 
 weeks = []
@@ -64,7 +85,7 @@ for n in range(1, 27):
     if n < 26:
         a_txt, b_txt, _ = rows[n]
         a_tag = "Test" if kind == "test" else "locker" if kind == "deload" or n == 2 else "Z2"
-        a_note = " Empfohlen, damit die Zonen stimmen. Danach am Dienstag beim Spinning nicht voll gehen." if kind == "test" else ""
+        a_note = (" Empfohlen, damit die Zonen stimmen. Danach am Dienstag " + ("beim Spinning nicht voll gehen." if n < SOLO else "nur locker.")) if kind == "test" else ""
         S[0] = dict(type="A", sport="rad", title="Rolle A", slot="Rolle A", detail=a_txt + a_note, tag=a_tag, opt=True, file=files.get("A"), min=mins.get(files.get("A")))
         S[1] = dict(type="spin", sport="rad", title="Spinning", detail="Intervallkurs, 60 min. Die harte Einheit der Woche.", tag="hart")
         if n == 2:
@@ -77,16 +98,25 @@ for n in range(1, 27):
         S[6] = dict(type="kraft", sport="kraft", title="Kraft 2 · Oberkörper und Rumpf", detail=KRAFT2[ph] + deload_note, tag="Oberkörper")
         note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 21: "Samstag 2 h (Ausnahme)", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
         note = (note + " · " if note else "") + "Spinning + Rolle B · Rolle A optional"
+        if SOLO <= n <= 24:  # W25 ist das Trainingslager
+            # kein Spinning und Schwimmen mehr: Dienstag die harte Einheit auf der Rolle, Donnerstag locker
+            S[1] = dict(type="B", sport="rad", title="Rolle C", slot="Rolle C", detail=C_TXT[n] + (" Statt Spinning." if n == SOLO else ""),
+                        tag="locker" if kind == "test" else "hart", file=files.get("C"), min=mins.get(files.get("C")))
+            S[3] = dict(type="B", sport="rad", title="Rolle D · locker", slot="Rolle D", detail=D_TXT_DELOAD if kind == "deload" else D_TXT,
+                        tag="locker", opt=True, file=files.get("D"), min=mins.get(files.get("D")))
+            note = note.replace("Spinning + Rolle B · Rolle A optional", "Rolle C + Rolle B · A und D optional")
+            if n == SOLO:
+                note = "Ab jetzt kein Spinning und Schwimmen: Di Rolle C (Intervalle), Do optional locker"
     else:
         def tp(day, tag):
             f = files.get(day)
             return f, mins.get(f)
         f, m = tp("Mo", "")
         S[0] = dict(type="B", sport="rad", title="Taper 1", slot="Taper Montag", detail="45 min Z2 mit 3×3' @ 203 W, <b>Pause 3' @ 110 W</b>.", tag="kurz", file=f, min=m)
-        S[1] = dict(type="spin", sport="rad", title="Spinning", detail="Locker fahren oder ganz auslassen.", tag="locker")
+        S[1] = dict(type="frei", title="Ruhetag", detail="Frei.", tag="frei")
         f, m = tp("Mi", "")
         S[2] = dict(type="B", sport="rad", title="Taper 2", slot="Taper Mittwoch", detail="40 min Z2 mit 3×1' @ 212 W, <b>Pause 2' @ 110 W</b>.", tag="kurz", file=f, min=m)
-        S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen", detail="Locker schwimmen. Keine Beinkraft mehr in dieser Woche, höchstens 15 min Core und Mobility.", tag="locker")
+        S[3] = dict(type="frei", title="Ruhetag", detail="Frei oder 15 min Core und Mobility. Keine Beinkraft mehr in dieser Woche.", tag="frei")
         f, m = tp("Fr", "")
         S[4] = dict(type="B", sport="rad", title="Taper 3 · Aktivierung", slot="Taper Freitag", detail="30 min locker mit 2×1' @ 203 W, <b>Pause 2' @ 110 W</b>.", tag="kurz", file=f, min=m)
         S[5] = dict(type="race", sport="rad", title="Rennen · Eschborn-Frankfurt", detail="92 km, ca. 1.300 Höhenmeter. Verpflegung: 60–80 g Kohlenhydrate pro Stunde.", tag="Renntag")
@@ -103,6 +133,14 @@ for n in range(1, 27):
         S[4] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
         S[5] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
         note = "Weihnachten: Rad im Gym, kein Spinning und Schwimmen, 25. und 26.12. frei"
+    for i in range(7):
+        d = start + timedelta(days=i)
+        if d in FREI:
+            gone = S[i]["title"] if S[i]["type"] != "frei" else ""
+            S[i] = dict(type="frei", title=FREI[d], detail="Kein Training." + (" " + gone + " entfällt." if gone else ""), tag="frei")
+            note = "%s %d.%d. %s, kein Training · " % (["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][i], d.day, d.month, FREI[d]) + note
+        elif d in FEIERTAGE and S[i]["type"] in ("spin", "swim"):
+            S[i] = dict(type="frei", title="Ruhetag", detail=FEIERTAGE[d] + ": kein " + ("Spinning" if S[i]["type"] == "spin" else "Schwimmen") + ".", tag="frei")
     camp = False
     if n == 24:
         S[6] = dict(type="camp", sport="rad", title="Trainingslager · Tag 1", detail="Anreise. 1,5–2 h locker, Rad und Sitzposition prüfen. Kraft 2 entfällt.", tag="locker", tss=70)
