@@ -4,7 +4,8 @@ from xml.sax.saxutils import quoteattr, escape
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from plan_data import mit_kadenz  # noqa: E402
+from plan_data import mit_kadenz, A_MIN, B_MIN  # noqa: E402
+import re  # noqa: E402
 BASE = os.path.join(HERE, "..", "dist")
 OUT = os.path.join(BASE, "zwo")
 os.makedirs(OUT, exist_ok=True)
@@ -113,6 +114,7 @@ def add(wk, day, sess, slug, title, desc, steps, total_min=None, date_off=0):
 
 def A(wk, m):
     """Optionale A-Einheit am Montag: Z2 durchgehend (vor den Intervallen am Dienstag, daher keine Intervalle)."""
+    m = A_MIN.get(wk, m)
     tue = "am Dienstag ist Spinning" if wk < SOLO else "am Dienstag kommt Rolle C mit Intervallen"
     add(wk, "Mo", "A", f"{m}min_Z2", f"{m} min Z2",
         f"Optional. 10' Einfahren, {m - 15}' Z2 um {Z2} W (115-140 W), 5' Ausfahren. Ruhig rollen, {tue}.",
@@ -144,6 +146,11 @@ def TEST(wk):
 
 
 def B(wk, title, slug, desc, steps, total):
+    if wk in B_MIN:  # längere Z2-Dauer ab Woche 3: der Z2-Rest (FILL) wächst, die Blöcke bleiben
+        total = B_MIN[wk]
+        title = re.sub(r"^\d+ min", f"{total} min", title)
+        slug = re.sub(r"^\d+min", f"{total}min", slug)
+        desc = re.sub(r"^\d+ min", f"{total} min", desc)
     add(wk, "Sa", "B", slug, title, desc, steps, total, date_off=5)
 
 
@@ -249,10 +256,10 @@ B(20, "75 min, 2x10' @ 190 W", "75min_2x10min_190W", "Entlastungswoche. 10' Einf
 
 # -------- Phase 4 (W21-25)
 B(21, "2 h Z2, 3x10' @ 174 W am Ende", "120min_3x10min_174W",
-  "10' Einfahren, lange Z2-Phase, im letzten Drittel 3x10' @ 174 W, Pause 5' @ 120 W, 5' Ausfahren. Ausnahme-Einheit (2 h).",
+  "10' Einfahren, lange Z2-Phase, im letzten Drittel 3x10' @ 174 W, Pause 5' @ 120 W, 5' Ausfahren.",
   [wu(10), FILL] + reps(3, 600, 174, 300, 120) + [cd(5)], 120)
 B(22, "2 h Z2, 3x12' @ 183 W", "120min_3x12min_183W",
-  "10' Einfahren, 20' Z2, 3x12' @ 183 W, Pause 5' @ 120 W, Rest Z2. Ausnahme-Einheit (2 h), besser draussen.",
+  "10' Einfahren, 20' Z2, 3x12' @ 183 W, Pause 5' @ 120 W, Rest Z2. Besser draussen.",
   [wu(10), z2(20)] + reps(3, 720, 183, 300, 120) + [FILL], 120)
 B(24, "75 min, 3x5' @ 193 W", "75min_3x5min_193W", "Entlastungswoche. 10' Einfahren, 3x5' @ 193 W, Pause 4' @ 120 W, Rest Z2.",
   [wu(10)] + reps(3, 300, 193, 240, 120) + [FILL], 75)

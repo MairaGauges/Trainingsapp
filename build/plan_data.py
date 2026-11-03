@@ -91,10 +91,29 @@ phases.append(('Phase 3: Build (25.1. – 21.3.)', [
 ]))
 
 phases.append(('Phase 4: Rennspezifisch (22.3. – 25.4.)', [
-    (21, '22.3.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "2 h (Ausnahme): Z2, im letzten Drittel 3×10' @ 174 W, <b>Pause 5' @ 120 W</b>", ''),
+    (21, '22.3.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "2 h: Z2, im letzten Drittel 3×10' @ 174 W, <b>Pause 5' @ 120 W</b>", ''),
     (22, '29.3.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "2 h (besser draußen): 20' Z2, 3×12' @ 183 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
     (23, '5.4.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', 'Ausfahrt draußen, ca. 2,5 h, möglichst mit Höhenmetern; Verpflegung 60–80 g KH/h', ''),
     (24, '12.4.', 1, '45 min ganz locker, Z1–Z2 (100–130 W). Optional.', "75 min: 10' einfahren, 3×5' @ 193 W, <b>Pause 4' @ 120 W</b>, Rest Z2", 'd'),
     (25, '19.4.', 1, "<b>Trainingslager</b> So 18.4. – Fr 23.4.: Mo 110 km Z2, Di Ruhetag, Mi 2,5–3 h mit Anstiegen im Renntempo, Do bis 80 km Z2, Fr locker", "Rückreise oder frei, keine Rolle", ''),
 ]))
 
+
+
+# ---------------------------------------------------------------- Z2-Dauer (ab Woche 3)
+# Progressive Steigerung um etwa 10 % pro Woche, jede 4. Woche Entlastung (rund 25–30 % kürzer).
+# Rolle höchstens 2 h; Rolle A (Montag, optional) bis 90 min. Danach wächst der Reiz über die Blöcke in B
+# und über längere Ausfahrten draußen.
+A_MIN = {3: 65, 5: 70, 6: 75, 9: 75, 10: 80, 11: 85, 14: 90, 15: 90, 17: 90, 18: 90, 21: 90, 22: 90, 23: 75}
+B_MIN = {3: 90, 5: 100, 6: 105, 7: 110, 9: 120, 10: 120, 11: 120, 12: 90, 13: 120, 14: 120, 15: 120, 16: 90,
+         17: 120, 18: 120, 19: 120, 20: 90, 24: 80}
+
+
+def _dauer(txt, m):
+    new, n = re.subn(r"^\d+ min", "%d min" % m, txt, count=1)
+    assert n == 1, txt
+    return new
+
+
+phases = [(title, [(w, d, n, _dauer(a, A_MIN[w]) if w in A_MIN else a, _dauer(b, B_MIN[w]) if w in B_MIN else b, typ)
+                   for (w, d, n, a, b, typ) in rows]) for title, rows in phases]

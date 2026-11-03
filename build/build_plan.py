@@ -77,7 +77,8 @@ story.append(P("<b>Rhythmus:</b> Plan-Start ist Montag 2.11.2026, das Rennen am 
                "45 min ganz locker). <b>Ab 8.2. (Woche 15)</b> gibt es kein Spinning und kein Schwimmen mehr: "
                "Dienstag Rolle <b>C</b> (Intervalle), Donnerstag Rolle <b>D</b> (optional, locker). "
                "An Feiertagen in Bayern fallen Spinning und Schwimmen aus. Weihnachtswoche: Rad im Gym; "
-               "frei am 25./26.12. und am 3.1.", body))
+               "frei am 25./26.12. und am 3.1. <b>Z2-Dauer:</b> ab Woche 3 etwa 10 % länger pro Woche, "
+               "Rolle B bis 2 h (ab Woche 9), Rolle A bis 90 min; danach wächst der Reiz über die Blöcke und längere Ausfahrten draußen.", body))
 
 story.append(P("Zonen und Pausen", h2))
 zones = [[P(x, hdr) for x in ["Zone", "% FTP", "Watt (FTP 193 W)"]],

@@ -81,7 +81,7 @@ for n in range(1, 27):
         outdoor = (n == 23)
         S[5] = dict(type="B", sport="rad", title="Ausfahrt draußen" if outdoor else "Rolle B", slot="Rolle B", detail=b_txt, tag="lang", stabi=True, file=files.get("B"), min=mins.get(files.get("B")))
         S[6] = dict(type="kraft", sport="kraft", title="Kraft 2 · Oberkörper und Rumpf", detail=KRAFT2[ph] + deload_note, tag="Oberkörper")
-        note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 21: "Samstag 2 h (Ausnahme)", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
+        note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
         note = (note + " · " if note else "") + "Spinning + Rolle B · Rolle A optional"
         if SOLO <= n <= 24:  # W25 ist das Trainingslager
             # kein Spinning und Schwimmen mehr: Dienstag die harte Einheit auf der Rolle, Donnerstag locker
