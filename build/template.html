@@ -1406,6 +1406,7 @@ function gProfile() {
     vo2c: deepNum(P.settings, /vo2max.*cycl/i), vo2r: deepNum(P.settings, /vo2max.*run/i),
     fitAge: deepNum(P.fitnessAge, /^fitnessAge$/i) || deepNum(P.fitnessAge, /fitnessage/i),
     rhr: daily.filter(d => d.restingHeartRate > 0).map(d => ({ d: d.calendarDate, v: d.restingHeartRate })),
+    rhrNow: Number(((P.fitnessAge || {}).components || {}).rhr ? P.fitnessAge.components.rhr.value : 0) || null,   // Ruhepuls laut Fitnessalter, falls die Tageswerte fehlen
     hrv: hrvL.map(d => ({ d: d.calendarDate || d.date, v: deepNum(d, /lastNightAvg/i), wk: deepNum(d, /weeklyAvg/i), st: d.status || '' })).filter(x => x.v),
     errors: P.errors || {}
   };
@@ -1441,7 +1442,7 @@ function myZones() {
   }
   if (!z) {
     const max = hrMaxSeen(), g = gProfile();
-    const rhr = g && g.rhr.length ? Math.round(g.rhr.slice(-14).reduce((x, y) => x + y.v, 0) / g.rhr.slice(-14).length) : null;
+    const rhr = g && g.rhr.length ? Math.round(g.rhr.slice(-14).reduce((x, y) => x + y.v, 0) / g.rhr.slice(-14).length) : g && g.rhrNow ? Math.round(g.rhrNow) : null;
     const rest = rhr || 60;
     if (max) z = { method: 'karvonen', max, rest, restMeasured: !!rhr, floors: [.5, .6, .7, .8, .9].map(x => Math.round(rest + x * (max - rest))) };
   }
@@ -1455,7 +1456,12 @@ function hrBounds(hrMax) {
   return hrMax ? { hi: hrMax * .9, thr: hrMax * .82 } : null;
 }
 // Höchster gemessener Puls aus den Aktivitäten (Ausreißer über 215 zählen nicht)
-function hrMaxSeen() { let m = 0; Store.acts.forEach(a => { if (a.maxHr > m && a.maxHr <= 215) m = a.maxHr; }); return m >= 150 ? m : 0; }
+// Höchster Puls auf dem Rad (beim Laufen liegt er meist höher und passt nicht zu Radzonen); ohne Radfahrten alle Sportarten
+function hrMaxSeen() {
+  const top = f => Store.acts.reduce((m, a) => f(a) && a.maxHr > m && a.maxHr <= 215 ? a.maxHr : m, 0);
+  const m = top(a => a.sport === 'rad') || top(() => true);
+  return m >= 150 ? m : 0;
+}
 function loadOf(a, hrMax) {
   const t = tssOf(a);
   if (t != null) return { tss: t, est: false };
@@ -1814,7 +1820,7 @@ function garminProfileHtml() {
     tiles.push(`<div class="tile"><span class="k">Ruhepuls</span><span class="v">${Math.round(last7)}</span><span class="s">${d != null ? `Ø 7 Tage, ${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d))} zum Monatsschnitt` : 'Ø 7 Tage'}</span>${spark(g.rhr.slice(-60).map(x => x.v), 'var(--c1)')}</div>`);
     if (d != null && d >= 4) tips.push(`Ruhepuls ${Math.round(d)} Schläge über deinem Schnitt: Zeichen für Müdigkeit, Stress oder einen beginnenden Infekt. Die nächsten Einheiten lockerer.`);
     else if (d != null && d <= -3) tips.push('Ruhepuls sinkt: dein Herz arbeitet ökonomischer, gutes Zeichen für die Grundlage.');
-  }
+  } else if (g && g.rhrNow) tiles.push(`<div class="tile"><span class="k">Ruhepuls</span><span class="v">${Math.round(g.rhrNow)}</span><span class="s">laut Garmin</span></div>`);
   if (g && g.hrv.length) {
     const h = g.hrv[g.hrv.length - 1], st = String(h.st || '').toUpperCase();
     const stTxt = { BALANCED: 'ausgeglichen', UNBALANCED: 'unausgeglichen', LOW: 'niedrig', POOR: 'niedrig' }[st] || '';
@@ -1843,7 +1849,7 @@ function garminProfileHtml() {
   }
   const zNote = !Z ? '' : Z.method === 'lthr'
     ? `Selbst berechnet aus deinem FTP-Test am ${fmtDM(new Date(Z.date * 1000))}: Laktatschwelle ${Z.lthr} (95 % des Ø-Pulses der härtesten 20 min), Rad-Zonen nach Friel.`
-    : `Selbst berechnet nach Karvonen aus deinem höchsten gemessenen Puls ${Z.max} und ${Z.restMeasured ? 'deinem Ruhepuls ' + Z.rest + ' (Ø 14 Tage)' : 'einem angenommenen Ruhepuls von 60'}. Nach dem FTP-Test rechnet die App genauer über deine Laktatschwelle.`;
+    : `Selbst berechnet nach Karvonen aus deinem höchsten gemessenen Puls auf dem Rad (${Z.max}) und ${Z.restMeasured ? 'deinem Ruhepuls ' + Z.rest + ' (Garmin)' : 'einem angenommenen Ruhepuls von 60'}. Nach dem FTP-Test rechnet die App genauer über deine Laktatschwelle.`;
   const errs = g ? Object.keys(g.errors) : [];
   return `<div class="card"><div class="card-h"><h3>${g || vo2.length ? 'Garmin-Werte und Pulszonen' : 'Pulszonen'}</h3><span class="muted">${g && g.fetched ? 'Stand ' + fmtDM(parseISO(g.fetched)) : ''}</span></div>
     ${tiles.length ? `<div class="tiles">${tiles.join('')}</div>` : ''}
