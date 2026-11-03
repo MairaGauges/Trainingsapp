@@ -13,7 +13,7 @@ for fn in os.listdir(OUT):
     os.remove(os.path.join(OUT, fn))
 
 FTP = 193
-SOLO = 15  # ab Woche 15 (8.2.) gibt es kein Spinning und kein Schwimmen mehr: Di Rolle C, Do Rolle D
+SOLO = 15  # ab Woche 15 (8.2.) gibt es kein Spinning und kein Schwimmen mehr: Di Rolle C, Do Schwimmen nach eigenem Programm
 Z2 = 125
 START = datetime.date(2026, 11, 2)
 
@@ -159,18 +159,6 @@ def C(wk, title, slug, desc, steps, total):
     add(wk, "Di", "C", slug, title, desc, steps, total, date_off=1)
 
 
-def D(wk, deload=False):
-    """Donnerstag ab W15, optional: locker statt Schwimmen, als aktive Erholung."""
-    if deload:
-        add(wk, "Do", "D", "40min_locker", "40 min ganz locker",
-            "Optional, statt Schwimmen. 40 min ganz locker, Z1-Z2 (100-130 W), gern hohe Kadenz.",
-            [wu(10, 100, 120), st(25 * 60, 115, 90, "Ganz locker"), cd(5, 110, 100)], 40, 3)
-    else:
-        add(wk, "Do", "D", "45min_locker_Kadenz", "45 min locker, 4x1' hohe Kadenz",
-            "Optional, statt Schwimmen. 10' Einfahren, Z2, 4x1' @ 130 W bei 105 U/min, Pause 2' @ 115 W, 5' Ausfahren. Aktive Erholung, nicht hart.",
-            [wu(10), FILL] + reps(4, 60, 130, 120, 115, 105, 90) + [cd(5)], 45, 3)
-
-
 def overunder(n, hi, lo, pause):
     """n Blöcke à 6 min: 2' über, 1' unter der Schwelle, zweimal; dazwischen Pause."""
     out = []
@@ -263,7 +251,7 @@ B(22, "2 h Z2, 3x12' @ 183 W", "120min_3x12min_183W",
   [wu(10), z2(20)] + reps(3, 720, 183, 300, 120) + [FILL], 120)
 B(24, "75 min, 3x5' @ 193 W", "75min_3x5min_193W", "Entlastungswoche. 10' Einfahren, 3x5' @ 193 W, Pause 4' @ 120 W, Rest Z2.",
   [wu(10)] + reps(3, 300, 193, 240, 120) + [FILL], 75)
-# -------- Ab W15 (8.2.): kein Spinning, kein Schwimmen. Di Rolle C (Intervalle), Do Rolle D (optional locker)
+# -------- Ab W15 (8.2.): kein Spinning, kein Schwimmen. Di Rolle C (Intervalle), Do Schwimmen
 C(15, "60 min, 5x3' @ 215 W", "60min_5x3min_215W", "15' Einfahren, 5x3' @ 215 W, Pause 3' @ 110 W, Rest Z2, 5' Ausfahren.",
   [wu(15)] + reps(5, 180, 215, 180, 110) + [FILL, cd(5)], 60)
 C(16, "50 min, 3x3' @ 210 W", "50min_3x3min_210W", "Entlastungswoche. 15' Einfahren, 3x3' @ 210 W, Pause 3' @ 110 W, Rest Z2, 5' Ausfahren.",
@@ -287,8 +275,6 @@ C(23, "65 min, 6x3' @ 220 W", "65min_6x3min_220W", "15' Einfahren, 6x3' @ 220 W,
   [wu(15)] + reps(6, 180, 220, 180, 110) + [FILL, cd(5)], 65)
 C(24, "50 min, 3x2' @ 215 W", "50min_3x2min_215W", "Entlastungswoche vor dem Trainingslager. 15' Einfahren, 3x2' @ 215 W, Pause 3' @ 110 W, Rest Z2, 5' Ausfahren.",
   [wu(15)] + reps(3, 120, 215, 180, 110) + [FILL, cd(5)], 50)
-for wk in range(SOLO, 25):
-    D(wk, deload=wk in (16, 20, 24))
 
 # W25: Trainingslager draussen (So 18.4. - Fr 23.4.), keine Rollen-Dateien
 
@@ -333,7 +319,7 @@ Hinweise
 - In W25 gibt es keine Dateien: Trainingslager draussen (So 18.4. - Fr 23.4.).
 - Plan startet am Montag 2.11.2026. Jede Woche: B (Samstag) fest, A (Montag, Z2) optional, Freitag Ruhetag.
   In Entlastungswochen ist A eine lockere 45-min-Einheit, in W7/W13/W19 der FTP-Test. W26 ist die Rennwoche mit drei kurzen Taper-Dateien.
-- Ab W15 (8.2.) gibt es kein Spinning und kein Schwimmen mehr: Dienstag Rolle C (Intervalle), Donnerstag Rolle D (optional, locker).
+- Ab W15 (8.2.) gibt es kein Spinning und kein Schwimmen mehr: Dienstag Rolle C (Intervalle), Donnerstag Schwimmen (Programm in der App).
 
 Katalog
 -------

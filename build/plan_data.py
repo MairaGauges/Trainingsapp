@@ -39,7 +39,7 @@ TEST_A = ("<b>FTP-Test</b> (Ramp- oder 20-min-Test): 15' einfahren, 3×1' @ 200 
           "mit je <b>1' Pause</b> @ 110 W, <b>5' locker</b> @ 110 W, Test, "
           "10' ausfahren. Danach Zonen neu berechnen.")
 
-# Dienstag: Spinning-Kurs; ab Woche 15 (8.2.) Rolle C, Donnerstag Rolle D (optional) statt Schwimmen
+# Dienstag: Spinning-Kurs; ab Woche 15 (8.2.) Rolle C. Donnerstag ab Woche 15 Schwimmen nach eigenem Programm (SWIM)
 # Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15
 C_TXT = {
     15: "60 min: 15' einfahren, 5×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
@@ -53,8 +53,34 @@ C_TXT = {
     23: "65 min: 15' einfahren, 6×3' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
     24: "50 min: 15' einfahren, 3×2' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2. Kurz vor dem Trainingslager.",
 }
-D_TXT = "45 min locker mit 4×1' @ 130 W bei 105 U/min, <b>Pause 2' @ 115 W</b>. Aktive Erholung statt Schwimmen."
-D_TXT_DELOAD = "40 min ganz locker, Z1–Z2 (100–130 W). Statt Schwimmen."
+# Schwimmen (Kraul, wenn nicht anders genannt). ruhig = könntest lange so weiter, zügig = leicht außer Atem, schnell = deutlich außer Atem.
+# P = Pause am Beckenrand. Technik: Abschlagschwimmen und einarmig im Wechsel. Pull = mit Pullbuoy, schont die Beine fürs Rad.
+SWIM = {
+    15: (2200, ["300 ein, locker gemischt", "4×50 Technik, P 20\"", "6×200 ruhig und gleichmäßig, P 30\"", "4×50 Pull zügig, P 20\"", "300 aus, locker"]),
+    16: (2000, ["300 ein", "4×50 Technik, P 20\"", "10×100 ruhig, P 20\"", "200 Rücken oder Brust locker", "300 aus"]),
+    17: (2300, ["400 ein", "4×50 Technik, P 20\"", "3×400 ruhig und gleichmäßig, P 45\"", "4×50 schnell, P 40\"", "300 aus"]),
+    18: (2400, ["300 ein", "6×50 Technik, P 20\"", "Pyramide 100–200–300–400–300–200–100 zügig, P 20–40\" (je länger, desto mehr)", "200 aus"]),
+    19: (2200, ["300 ein", "4×50 Technik, P 20\"", "12×100 zügig, P 15\"", "4×50 Pull locker", "300 aus"]),
+    20: (2000, ["400 ein", "4×50 Technik, P 20\"", "4×200 ruhig, P 30\"", "4×50 Rücken locker", "400 aus"]),
+    21: (2500, ["400 ein", "4×50 Technik, P 20\"", "2×800 ruhig und gleichmäßig, P 60\"", "300 aus"]),
+    22: (2400, ["300 ein", "4×50 Technik, P 20\"", "5×300, die letzten 100 jeweils zügig, P 30\"", "4×50 Pull locker", "200 aus"]),
+    23: (2200, ["300 ein", "4×50 Technik, P 20\"", "1000 durchgehend ruhig", "4×100 Pull ruhig, P 20\"", "300 aus"]),
+    24: (2000, ["400 ein", "4×50 Technik, P 20\"", "8×100 ruhig, P 20\"", "4×50 Pull locker", "400 aus"]),
+}
+for _w, (_m, _l) in SWIM.items():  # Summe prüfen
+    _s = 0
+    for x in _l:
+        m = re.match(r"(?:(\d+)×)?(\d+)", x)
+        if x.startswith("Pyramide"):
+            _s += 1600
+        elif m:
+            _s += int(m.group(1) or 1) * int(m.group(2))
+    assert _s == _m, (_w, _s, _m)
+
+
+def swim_txt(n, sep="<br>"):
+    m, lines = SWIM[n]
+    return "<b>%s km</b>: " % ("%.1f" % (m / 1000)).replace(".", ",") + sep.join(lines) + "."
 DI = {2: "<b>Spinning · FTP-Test</b>: 20 min so gleichmäßig hart wie möglich",
       8: "Frei: kein Spinning. Mo 21.12. Intervalle im Gym (siehe links), Do 24.12. 45 min locker im Gym (optional), 25./26.12. frei",
       9: "Spinning. <b>So 3.1. Geburtstag: frei</b>, Kraft 2 entfällt"}

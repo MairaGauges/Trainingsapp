@@ -8,7 +8,7 @@ ZWO = os.path.join(ROOT, "dist", "zwo")
 DIST = os.path.join(ROOT, "dist")
 WEB = os.path.join(ROOT, "web")
 sys.path.insert(0, HERE)
-from plan_data import phases, C_TXT, D_TXT, D_TXT_DELOAD, mit_kadenz  # noqa: E402
+from plan_data import phases, C_TXT, SWIM, swim_txt, mit_kadenz  # noqa: E402
 
 rows = {}
 for _title, ph_rows in phases:
@@ -84,14 +84,14 @@ for n in range(1, 27):
         note = {2: "FTP-Test beim Spinning am Dienstag", 7: "FTP-Test am Montag", 13: "FTP-Test am Montag", 19: "FTP-Test am Montag", 22: "Samstag besser draußen", 23: "Samstag draußen fahren"}.get(n, "")
         note = (note + " · " if note else "") + "Spinning + Rolle B · Rolle A optional"
         if SOLO <= n <= 24:  # W25 ist das Trainingslager
-            # kein Spinning und Schwimmen mehr: Dienstag die harte Einheit auf der Rolle, Donnerstag locker
+            # kein Spinning mehr: Dienstag die harte Einheit auf der Rolle; Donnerstag Schwimmen nach eigenem Programm
             S[1] = dict(type="B", sport="rad", title="Rolle C", slot="Rolle C", detail=C_TXT[n] + (" Statt Spinning." if n == SOLO else ""),
                         tag="locker" if kind == "test" else "hart", file=files.get("C"), min=mins.get(files.get("C")))
-            S[3] = dict(type="B", sport="rad", title="Rolle D · locker", slot="Rolle D", detail=D_TXT_DELOAD if kind == "deload" else D_TXT,
-                        tag="locker", opt=True, file=files.get("D"), min=mins.get(files.get("D")))
-            note = note.replace("Spinning + Rolle B · Rolle A optional", "Rolle C + Rolle B · A und D optional")
+            S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen · %s km" % ("%.1f" % (SWIM[n][0] / 1000)).replace(".", ","),
+                        detail=swim_txt(n), tag="locker" if kind == "deload" else "Ausdauer", prog=True)
+            note = note.replace("Spinning + Rolle B · Rolle A optional", "Rolle C + Rolle B · Rolle A optional")
             if n == SOLO:
-                note = "Ab jetzt kein Spinning und Schwimmen: Di Rolle C (Intervalle), Do optional locker"
+                note = "Ab jetzt kein Spinning: Di Rolle C (Intervalle), Do Schwimmen nach Plan"
     else:
         def tp(day, tag):
             f = files.get(day)
@@ -101,7 +101,7 @@ for n in range(1, 27):
         S[1] = dict(type="frei", title="Ruhetag", detail="Frei.", tag="frei")
         f, m = tp("Mi", "")
         S[2] = dict(type="B", sport="rad", title="Taper 2", slot="Taper Mittwoch", detail="40 min Z2 mit 3×1' @ 212 W, <b>Pause 2' @ 110 W</b>.", tag="kurz", file=f, min=m)
-        S[3] = dict(type="frei", title="Ruhetag", detail="Frei oder 15 min Core und Mobility. Keine Beinkraft mehr in dieser Woche.", tag="frei")
+        S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen · locker", detail="Optional, 1–1,5 km ganz locker, mit Pullbuoy. Keine Beinkraft mehr in dieser Woche.", tag="locker", opt=True, prog=True)
         f, m = tp("Fr", "")
         S[4] = dict(type="B", sport="rad", title="Taper 3 · Aktivierung", slot="Taper Freitag", detail="30 min locker mit 2×1' @ 203 W, <b>Pause 2' @ 110 W</b>.", tag="kurz", file=f, min=m)
         S[5] = dict(type="race", sport="rad", title="Rennen · Eschborn-Frankfurt", detail="92 km, ca. 1.300 Höhenmeter. Verpflegung: 60–80 g Kohlenhydrate pro Stunde.", tag="Renntag")

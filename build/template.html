@@ -1105,7 +1105,7 @@ function dayRow(w, i, d, first, extra) {
   const sid = sessionIdForDay(s, i), ps = sid ? planSession(sid) : null, manual = manualDone(w, s, i);
   const title = ps ? ps.name : s.title;
   // Beschreibung nur bei Rolleneinheiten, Trainingslager, Rennen und Tests; sonst nur der Name
-  const showDetail = !ps && (s.file || s.type === 'B' || s.type === 'camp' || s.type === 'race' || s.tag === 'Test');
+  const showDetail = !ps && (s.file || s.prog || s.type === 'B' || s.type === 'camp' || s.type === 'race' || s.tag === 'Test');
   const detail = showDetail ? s.detail : '';
   const isOn = !!(done.length || manual);
   // Runder Haken vor dem Titel: von Hand abhaken; von Garmin erkannte Einheiten sind fest abgehakt

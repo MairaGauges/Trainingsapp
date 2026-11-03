@@ -52,7 +52,7 @@ def tbl(data, widths, extra=None, header=True):
     return t
 
 
-from plan_data import phases, TEST_A, C_TXT, D_TXT, D_TXT_DELOAD, DI, mit_kadenz  # noqa: E402
+from plan_data import phases, TEST_A, C_TXT, SWIM, swim_txt, DI, mit_kadenz  # noqa: E402
 
 # ---------------------------------------------------------------- Story
 story = []
@@ -64,7 +64,7 @@ story.append(P("Wochenstruktur", h2))
 week = [[P(x, hdr) for x in ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]],
         [P(x, small) for x in [
             "Rolle <b>A</b> (Z2, optional)", "Spinning (Intervalle, 1 h); ab 8.2. Rolle <b>C</b> (Intervalle)",
-            "Kraft 1 (Beine, Ganzkörper)", "Schwimmen; ab 8.2. Rolle <b>D</b> (locker, optional)",
+            "Kraft 1 (Beine, Ganzkörper)", "Schwimmen; ab 8.2. nach eigenem Programm (2–2,5 km)",
             "frei / 15 min Mobility",
             "Rolle <b>B</b> (lang, Z2 mit Tempoblöcken), danach 15 min Stabi",
             "Kraft 2 (Oberkörper, Rumpf)"]]]
@@ -75,7 +75,7 @@ story.append(P("<b>Rhythmus:</b> Plan-Start ist Montag 2.11.2026, das Rennen am 
                "Einheit <b>A</b> (Montag, Z2) ist <b>optional</b>: fahr sie, wenn du dich frisch fühlst. "
                "Die Wochen 4, 8, 12, 16, 20 und 24 sind Entlastungswochen (B verkürzt, A nur "
                "45 min ganz locker). <b>Ab 8.2. (Woche 15)</b> gibt es kein Spinning und kein Schwimmen mehr: "
-               "Dienstag Rolle <b>C</b> (Intervalle), Donnerstag Rolle <b>D</b> (optional, locker). "
+               "Dienstag Rolle <b>C</b> (Intervalle), Donnerstag Schwimmen nach eigenem Programm. "
                "An Feiertagen in Bayern fallen Spinning und Schwimmen aus. Weihnachtswoche: Rad im Gym; "
                "frei am 25./26.12. und am 3.1. <b>Z2-Dauer:</b> ab Woche 3 etwa 10 % länger pro Woche, "
                "Rolle B bis 2 h (ab Woche 9), Rolle A bis 90 min; danach wächst der Reiz über die Blöcke und längere Ausfahrten draußen.", body))
@@ -111,8 +111,7 @@ def di(w, typ):
     if w in DI:
         return DI[w]
     if w in C_TXT:
-        d = D_TXT_DELOAD if typ == "d" else D_TXT
-        return "<b>Rolle C</b>: " + mit_kadenz(C_TXT[w]) + "<br/><b>Do Rolle D</b> (optional): " + d
+        return "<b>Rolle C</b>: " + mit_kadenz(C_TXT[w]) + "<br/><b>Do Schwimmen</b> %s km (Programm unter „Schwimmen ab Woche 15“)" % ("%.1f" % (SWIM[w][0] / 1000)).replace(".", ",")
     if w == 25:
         return "Ruhetag (Trainingslager)"
     return "Spinning (Kurs, 1 h)"
@@ -146,7 +145,7 @@ story.append(KeepTogether([
         ]],
         [3*cm, 20*cm]),
     Spacer(1, 4),
-    P("Dienstag und Donnerstag frei. Keine Beinkraft mehr, "
+    P("Dienstag frei, Donnerstag optional 1–1,5 km locker schwimmen. Keine Beinkraft mehr, "
       "höchstens 15 min Core und Mobility.", body),
 ]))
 
@@ -170,6 +169,11 @@ kraft = [[P(x, hdr) for x in ["Phase", "Kraft 1 (Mi)", "Kraft 2 (So)"]]] + [
 story.append(tbl(kraft, [3*cm, 11.5*cm, 11.5*cm]))
 story.append(Spacer(1, 6))
 story.append(P("In den Entlastungswochen: gleiche Gewichte, aber nur 2 statt 3–4 Sätze.", body))
+story.append(P("Schwimmen ab Woche 15 (Donnerstag)", h2))
+story.append(P("ruhig = du könntest lange so weiterschwimmen · zügig = leicht außer Atem · schnell = deutlich außer Atem. "
+               "P = Pause am Beckenrand. Technik: Abschlagschwimmen und einarmig im Wechsel. Pull = mit Pullbuoy, schont die Beine fürs Rad.", body))
+story.append(tbl([[P(x, hdr) for x in ["Woche", "Programm"]]] + [[P("W%d" % w, small), P(swim_txt(w, " · "), small)] for w in sorted(SWIM)],
+                 [3*cm, 23*cm]))
 story.append(P("Hinweise", h2))
 for t in [
     "<b>Flexibel tauschen:</b> Wird eine Woche zu voll, lass die optionale Einheit A weg. Verschiebe lieber die Entlastungswoche nach vorn, statt sie zu streichen.",
