@@ -52,7 +52,7 @@ def tbl(data, widths, extra=None, header=True):
     return t
 
 
-from plan_data import phases, TEST_A, C_TXT, D_TXT, D_TXT_DELOAD, DI  # noqa: E402
+from plan_data import phases, TEST_A, C_TXT, D_TXT, D_TXT_DELOAD, DI, mit_kadenz  # noqa: E402
 
 # ---------------------------------------------------------------- Story
 story = []
@@ -111,7 +111,7 @@ def di(w, typ):
         return DI[w]
     if w in C_TXT:
         d = D_TXT_DELOAD if typ == "d" else D_TXT
-        return "<b>Rolle C</b>: " + C_TXT[w] + "<br/><b>Do Rolle D</b> (optional): " + d
+        return "<b>Rolle C</b>: " + mit_kadenz(C_TXT[w]) + "<br/><b>Do Rolle D</b> (optional): " + d
     if w == 25:
         return "Ruhetag (Trainingslager)"
     return "Spinning (Kurs, 1 h)"
@@ -122,7 +122,7 @@ for title, rows in phases:
     data = [[P(x, hdr) for x in ["Wo.", "ab", "Mo: Einheit A (optional)", "Di: Spinning / Rolle C", "Sa: Einheit B"]]]
     extra = []
     for i, (w, d, n, a, b, typ) in enumerate(rows, start=1):
-        data.append([P(f"<b>{w}</b>", small), P(d, small), P(a, small), P(di(w, typ), small), P(b, small)])
+        data.append([P(f"<b>{w}</b>", small), P(d, small), P(mit_kadenz(a) if w < 25 else a, small), P(di(w, typ), small), P(mit_kadenz(b) if w < 25 else b, small)])
         if typ == "d":
             extra.append(("BACKGROUND", (0, i), (-1, i), DELOAD))
         elif typ == "t":

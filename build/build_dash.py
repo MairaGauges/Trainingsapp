@@ -8,7 +8,7 @@ ZWO = os.path.join(ROOT, "dist", "zwo")
 DIST = os.path.join(ROOT, "dist")
 WEB = os.path.join(ROOT, "web")
 sys.path.insert(0, HERE)
-from plan_data import phases, C_TXT, D_TXT, D_TXT_DELOAD  # noqa: E402
+from plan_data import phases, C_TXT, D_TXT, D_TXT_DELOAD, mit_kadenz  # noqa: E402
 
 rows = {}
 for _title, ph_rows in phases:
@@ -118,6 +118,9 @@ for n in range(1, 27):
         S[4] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
         S[5] = dict(type="frei", title="Weihnachten", detail="Frei.", tag="frei")
         note = "Weihnachten: Rad im Gym, kein Spinning und Schwimmen, 25. und 26.12. frei"
+    for s in S:  # Kadenz-Empfehlung zu jeder Rolleneinheit (auch Gym-Rad und Taper)
+        if s["type"] in ("A", "B"):
+            s["detail"] = mit_kadenz(s["detail"])
     for i in range(7):
         d = start + timedelta(days=i)
         if d in FREI:

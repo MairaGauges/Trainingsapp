@@ -1,5 +1,38 @@
 """Wochenplan: 26 Wochen ab 2.11.2026. Wird von build_plan.py (PDF) und build_dash.py (App) genutzt."""
 
+import re
+
+
+def kadenz(txt):
+    """Kadenz-Empfehlung zu einer Radeinheit, aus der Beschreibung abgeleitet (höchste Zielleistung, Test, draußen)."""
+    if "Kadenz" in txt:
+        return ""
+    if "FTP-Test" in txt or "FTP = " in txt:
+        return "Kadenz: frei wählen, meist 90–100 U/min; im Test die Trittfrequenz, bei der du am gleichmäßigsten drückst."
+    if "draußen" in txt or "Ausfahrt" in txt:
+        return "Kadenz: in der Ebene 85–95 U/min, am Anstieg 70–85 U/min, früh runterschalten statt drücken."
+    if "U/min" in txt:
+        return "Kadenz sonst 85–95 U/min."
+    w = [int(x) for x in re.findall(r"@ (\d{3}) ?W", txt)]
+    hi = max([x for x in w if x > 125] or [0])
+    if hi >= 250:
+        return "Kadenz: 30-Sekunden-Stöße 100–110 U/min, sonst 85–95 U/min."
+    if hi > 200:
+        return "Kadenz: Intervalle 95–105 U/min (spart Kraft in den Beinen, fordert Herz und Lunge), Pausen und Z2 85–95 U/min."
+    if hi > 145:
+        return "Kadenz: 85–95 U/min, auch in den Blöcken."
+    return "Kadenz: 85–95 U/min, rund und locker treten."
+
+
+def mit_kadenz(txt):
+    k = kadenz(txt)
+    if not k:
+        return txt
+    txt = txt.rstrip()
+    end = re.sub(r"<[^>]+>", "", txt).rstrip()
+    return txt + ("" if end.endswith((".", "!", ")")) else ".") + " " + k
+
+
 # ---------------------------------------------------------------- Wochen
 # (Woche, Datum, Pflicht-Rolleneinheiten, A (optional), B, Typ)  Typ: "" | "d" (Entlastung) | "t" (FTP-Test)
 TEST_A = ("<b>FTP-Test</b> (Ramp- oder 20-min-Test): 15' einfahren, 3×1' @ 200 W "

@@ -1,8 +1,10 @@
-import os, zipfile, datetime
+import os, sys, zipfile, datetime
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import quoteattr, escape
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from plan_data import mit_kadenz  # noqa: E402
 BASE = os.path.join(HERE, "..", "dist")
 OUT = os.path.join(BASE, "zwo")
 os.makedirs(OUT, exist_ok=True)
@@ -99,7 +101,7 @@ def add(wk, day, sess, slug, title, desc, steps, total_min=None, date_off=0):
     wk_lbl = "Taper" if sess == "Taper" else f"W{wk:02d}"
     name = f"{wk_lbl} {day} {ds} {sess}: {title}"
     fname = f"{wk_lbl}_{day}_{sess}_{slug}.zwo".replace(" ", "")
-    xml = to_xml(name, desc, steps)
+    xml = to_xml(name, mit_kadenz(desc), steps)
     with open(os.path.join(OUT, fname), "w", encoding="utf-8") as fh:
         fh.write(xml)
     ET.fromstring(xml.encode("utf-8"))
