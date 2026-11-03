@@ -637,6 +637,16 @@ async function saveZip(filename, names) {
   }
 }
 
+// Alle Trainingsdaten als JSON speichern, z. B. für eine Auswertung außerhalb der App
+async function exportData() {
+  if (!DL) { toast('Download ist in dieser Ansicht nicht verfügbar.'); return; }
+  const out = { exportedAt: new Date().toISOString(), ftp: Store.ftp, garminProfile: Store.gprof, zones: myZones(),
+    activities: Store.acts, strengthLogs: Store.slogs, dayLogs: Store.dlogs, moves: Store.moves };
+  const filename = 'ef27-daten-' + dkey(new Date()) + '.json';
+  try { await DL.save({ filename, data: new Blob([JSON.stringify(out)], { type: 'application/json' }) }); toast('Gespeichert: ' + filename); }
+  catch (e) { if (!(e && e.code === 'declined')) toast('Download fehlgeschlagen' + (e && e.code ? ' (' + e.code + ')' : '') + '.'); }
+}
+
 /* ---------- ZIP lesen (für Garmin-Exporte) ---------- */
 async function readZip(buf) {
   const dv = new DataView(buf), u8 = new Uint8Array(buf);
@@ -1349,6 +1359,7 @@ function renderGarmin() {
         <label class="drop" for="fileIn" id="drop"><b>${busy ? 'Wird gelesen …' : 'Dateien auswählen oder hierher ziehen'}</b><span class="muted">FIT, TCX, GPX oder die ZIP-Datei aus Garmin Connect</span></label>
         ${logHtml}
         <div class="howto"><span><b>So kommst du an die Datei:</b> In Garmin Connect (Browser) die Aktivität öffnen, Zahnrad-Menü, „Original exportieren“. Alternativ vom Gerät den Ordner GARMIN/Activity kopieren.</span><span>${modeTxt} Die Dateien selbst werden im Browser gelesen und nicht hochgeladen, gespeichert werden nur Kennzahlen und ein gekürzter Verlauf.</span></div>
+        <button class="btn ghost" style="width:100%;margin-top:10px" data-action="export-data"${DL && Store.acts.length ? '' : ' disabled'}>Daten exportieren · ${Store.acts.length} ${Store.acts.length === 1 ? 'Aktivität' : 'Aktivitäten'} als JSON</button>
       </div>
       <div class="card">
         <div class="card-h"><h3>Trainingszeit pro Woche</h3>
@@ -2470,6 +2481,7 @@ document.addEventListener('click', ev => {
       const w = W[sel], names = sessionsOf(w).filter(s => s.file).map(s => s.file);
       saveZip('MyWhoosh_' + (w.kind === 'taper' ? 'Taper' : 'W' + pad(w.n)) + '.zip', names);
     }
+    else if (a === 'export-data') exportData();
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
     else if (a === 's-sync') stravaSync();
