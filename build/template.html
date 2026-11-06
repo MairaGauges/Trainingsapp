@@ -98,7 +98,6 @@ button,input{font:inherit;color:inherit}
 .wk.sel{background:var(--accent);color:var(--accent-ink);box-shadow:0 4px 12px rgba(240,100,90,.35)}
 .wk.cur{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
 .wk.cur.sel{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink),0 4px 12px rgba(240,100,90,.35)}
-.wk.has::before{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--ok)}
 
 /* Woche */
 .main-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
@@ -1117,8 +1116,7 @@ function renderHero() {
 function renderStrip() {
   const groups = [['Grundlage',1,6],['Aufbau',7,12],['Build',13,20],['Rennspezifisch',21,25],['Taper',26,26]];
   const cell = (w, i) => {
-    const has = actsOfWeek(i).length > 0 || w.sessions.some((s, k) => manualDone(w, s, k)) || stabiDone(w);
-    return `<button class="wk k-${w.kind}${i === sel ? ' sel' : ''}${i === curWeek ? ' cur' : ''}${has ? ' has' : ''}" data-week="${i}" aria-pressed="${i === sel}" aria-label="Woche ${w.n}, ${fmtRange(w.startD, addDays(w.startD, 6))}, ${KIND[w.kind]}">${w.n}</button>`;
+    return `<button class="wk k-${w.kind}${i === sel ? ' sel' : ''}${i === curWeek ? ' cur' : ''}" data-week="${i}" aria-pressed="${i === sel}" aria-label="Woche ${w.n}, ${fmtRange(w.startD, addDays(w.startD, 6))}, ${KIND[w.kind]}">${w.n}</button>`;
   };
   $('#strip').innerHTML = `
     <div class="card-h"><h3>Planübersicht</h3>
@@ -1128,7 +1126,6 @@ function renderStrip() {
         <span><i class="sw" style="--c:var(--k-test)"></i>FTP-Test</span>
         <span><i class="sw" style="--c:var(--k-taper)"></i>Taper</span>
         <span><i class="dot" style="background:transparent;width:12px;height:12px;box-shadow:inset 0 0 0 2px var(--ink)"></i>aktuelle Woche</span>
-        <span><i class="dot" style="--c:var(--ok)"></i>Einheiten erfasst</span>
       </div></div>
     <div class="groups">${groups.map(g => `<div class="grp"><div class="grp-h"><span>${g[0]}</span><span>W${g[1]}${g[2] > g[1] ? '–' + g[2] : ''}</span></div><div class="cells">${W.slice(g[1] - 1, g[2]).map((w, k) => cell(w, g[1] - 1 + k)).join('')}</div></div>`).join('')}</div>`;
 }
