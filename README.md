@@ -140,3 +140,9 @@ make test
 - Schlüssel und Passwörter nie einchecken, nie in Chats oder Issues posten. Bei Verdacht den Garmin-Schlüssel in Connect löschen.
 - Der Server hat keine Benutzerverwaltung: ein Passwort, ein Nutzer. Er ist für den privaten Gebrauch gedacht.
 - Garmins Bedingungen: Die Personal API ist für den Eigengebrauch gedacht.
+
+## FTP und Anpassung des Plans
+
+Nach jedem FTP-Test fragt die App nach der neuen FTP. Die Wattwerte im Plan stehen für 193 W und werden auf die gültige FTP umgerechnet; Vergangenes bleibt bei der damaligen FTP (`settings/main`, Feld `ftpHist`). Die Workouts sind in Prozent der FTP gespeichert, die FTP muss also auch in MyWhoosh eingetragen werden.
+
+Die laufende und die nächste Woche passen sich an die Trainingsdaten an (Regeln am Anfang von `dynState` in `build/template.html`). Eine Anpassung wird am Tag der Einheit in der Sammlung `adapts` festgehalten und lässt sich pro Woche abschalten.

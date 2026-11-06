@@ -37,7 +37,7 @@ def mit_kadenz(txt):
 # (Woche, Datum, Pflicht-Rolleneinheiten, A (optional), B, Typ)  Typ: "" | "d" (Entlastung) | "t" (FTP-Test)
 TEST_A = ("<b>FTP-Test</b> (Ramp- oder 20-min-Test): 15' einfahren, 3×1' @ 200 W "
           "mit je <b>1' Pause</b> @ 110 W, <b>5' locker</b> @ 110 W, Test, "
-          "10' ausfahren. Danach Zonen neu berechnen.")
+          "10' ausfahren. Danach fragt die App nach der neuen FTP, trag sie auch in MyWhoosh ein.")
 
 # Dienstag: Spinning-Kurs; ab Woche 15 (8.2.) Rolle C. Donnerstag ab Woche 15 Schwimmen nach eigenem Programm (SWIM)
 # Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15

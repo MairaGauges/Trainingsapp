@@ -96,8 +96,8 @@ story.append(P("<b>Pausen:</b> Alle Pausen sind aktive Pausen, also weiterkurbel
                "sondern das Ziel-Watt im Workout auf die Pausenleistung stellen. "
                "<b>Einfahren</b> immer 15 min (steigernd von 100 auf 145 W), "
                "<b>Ausfahren</b> 10 min @ 100–110 W.", body))
-story.append(P("<b>FTP-Tests</b> in W7, W13 und W19 (Montag). Danach alle Wattwerte neu "
-               "berechnen: Sweet Spot 88–94 %, Schwelle 95–105 %, VO2max 106–120 %, "
+story.append(P("<b>FTP-Tests</b> in W2 (Spinning), W7, W13 und W19 (Montag). Die Wattwerte in diesem PDF gelten für 193 W; "
+               "die App rechnet sie nach jedem Test um und passt die Einheiten an deine Daten an. Sweet Spot 88–94 %, Schwelle 95–105 %, VO2max 106–120 %, "
                "Z2 56–75 %.", body))
 story.append(P("<b>Legende:</b> grün = Entlastungswoche (kürzer, A nur locker), "
                "gelb = FTP-Test. Z2 = 108–145 W, Pausen fett markiert.", body))

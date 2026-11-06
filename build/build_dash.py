@@ -74,7 +74,7 @@ for n in range(1, 27):
         S[0] = dict(type="A", sport="rad", title="Rolle A", slot="Rolle A", detail=a_txt + a_note, tag=a_tag, opt=True, file=files.get("A"), min=mins.get(files.get("A")))
         S[1] = dict(type="spin", sport="rad", title="Spinning", detail="Intervallkurs, 60 min. Die harte Einheit der Woche.", tag="hart")
         if n == 2:
-            S[1] = dict(type="spin", sport="rad", title="Spinning · FTP-Test", detail="FTP-Test im Spinningkurs, am besten 20 min so gleichmäßig hart wie möglich (FTP = 95 % vom Schnitt). Davor 15 min einfahren mit 2–3 kurzen Steigerungen. Wenn das Rad Leistung misst, mit Garmin aufzeichnen, dann liest die App die FTP aus. Danach neue FTP oben und in MyWhoosh eintragen.", tag="Test")
+            S[1] = dict(type="spin", sport="rad", title="Spinning · FTP-Test", detail="FTP-Test im Spinningkurs, am besten 20 min so gleichmäßig hart wie möglich (FTP = 95 % vom Schnitt). Davor 15 min einfahren mit 2–3 kurzen Steigerungen. Wenn das Rad Leistung misst, mit Garmin aufzeichnen, dann liest die App die FTP aus. Danach fragt die App nach der neuen FTP, trag sie auch in MyWhoosh ein.", tag="Test")
         S[2] = dict(type="kraft", sport="kraft", title="Kraft 1 · Beine und Ganzkörper", detail=KRAFT1[ph] + deload_note, tag="Beine")
         S[3] = dict(type="swim", sport="schwimmen", title="Schwimmen", detail="Schwimmtraining, gute Entlastung für die Beine.", tag="locker")
         S[4] = dict(type="frei", title="Ruhetag", detail="Frei oder 15 min Mobility. Ruhe vor der langen Einheit am Samstag.", tag="frei")

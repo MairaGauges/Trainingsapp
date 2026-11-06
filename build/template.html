@@ -246,6 +246,11 @@ tr.selrow td{background:var(--accent-soft)}
 .adapt{margin-top:8px;font-size:13px;color:var(--ink);background:var(--accent-soft);border-radius:14px;padding:9px 12px}
 .adapt small{display:block;color:var(--muted);margin-top:2px}
 .adapt.warn{background:var(--k-test)}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(34,48,58,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-c{background:var(--panel);color:var(--ink);border-radius:24px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+.modal-c h3{margin:0 0 8px}.modal-c p{margin:0 0 12px;font-size:14px}.modal-c label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+.modal-c .row{display:flex;align-items:center;gap:8px}.modal-c input{font:inherit;font-size:16px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
+.modal-c .muted{margin-top:10px}.modal-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .day.cont{border-top:1px dashed var(--line)}
 .chip.mvd{border-color:var(--accent);color:var(--accent)}
 .mv{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)}
@@ -435,7 +440,7 @@ let selAct = null;
 let DL;            // undefined = wird geladen, null = nicht verfügbar
 let busy = false;
 let lastImport = [];
-const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, pack: null, gprof: null, sloaded: false };
+const Store = { acts: [], ftp: DATA.ftp, mode: 'pending', db: null, splan: null, slogs: {}, dlogs: {}, moves: {}, pushes: {}, pack: null, gprof: null, sloaded: false, ftpHist: [], ftpAsked: {}, adaptOff: {}, adapts: {}, settingsLoaded: false, adaptsLoaded: false, actsLoaded: false };
 
 /* ---------- Speicher: Dashboard-Datenbank, sonst Browser, sonst Sitzung ---------- */
 function localLoad() {
@@ -456,14 +461,28 @@ function localLoad() {
     if (pk) Store.pack = JSON.parse(pk);
     const gp = localStorage.getItem('ef27.gprof');
     if (gp) Store.gprof = JSON.parse(gp);
+    applySettings(JSON.parse(localStorage.getItem('ef27.settings') || '{}'));
+    Store.adapts = JSON.parse(localStorage.getItem('ef27.adapts') || '{}') || {};
     Store.mode = 'local';
   } catch (e) { Store.mode = 'memory'; }
-  Store.sloaded = true;
+  Store.sloaded = true; Store.settingsLoaded = true; Store.adaptsLoaded = true; Store.actsLoaded = true;
+}
+function applySettings(o) {
+  const f = Number(o.ftp); if (f > 0) Store.ftp = f;
+  Store.ftpHist = Array.isArray(o.ftpHist) ? o.ftpHist : [];
+  Store.ftpAsked = o.ftpAsked || {}; Store.adaptOff = o.adaptOff || {};
+}
+const settingsDoc = () => ({ ftp: Store.ftp, ftpHist: Store.ftpHist, ftpAsked: Store.ftpAsked, adaptOff: Store.adaptOff });
+function saveSettings() {
+  if (Store.db) return enqueue(() => Store.db.doc('settings/main').set(settingsDoc()));
+  localSave();
 }
 function localSave() {
   try {
     localStorage.setItem('ef27.acts', JSON.stringify(Store.acts));
     localStorage.setItem('ef27.ftp', String(Store.ftp));
+    localStorage.setItem('ef27.settings', JSON.stringify(settingsDoc()));
+    localStorage.setItem('ef27.adapts', JSON.stringify(Store.adapts));
     localStorage.setItem('ef27.splan', JSON.stringify(Store.splan));
     localStorage.setItem('ef27.slogs', JSON.stringify(Store.slogs));
     localStorage.setItem('ef27.dlogs', JSON.stringify(Store.dlogs));
@@ -481,10 +500,12 @@ async function initStore() {
   try {
     db.collection('activities').onSnapshot(snap => {
       Store.acts = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+      Store.actsLoaded = true;
       render();
     }, fail);
     db.doc('settings/main').onSnapshot(s => {
-      if (s.exists) { const f = Number((s.data() || {}).ftp); if (f > 0) Store.ftp = f; }
+      if (s.exists) applySettings(JSON.parse(JSON.stringify(s.data() || {})));
+      Store.settingsLoaded = true;
       render();
     }, () => {});
     db.doc('garmin/profile').onSnapshot(sn => {
@@ -518,6 +539,12 @@ async function initStore() {
       Store.moves = m;
       renderWeek(); renderStrengthSafe(); renderProgress();
     }, () => {});
+    db.collection('adapts').onSnapshot(snap => {
+      const m = {};
+      snap.docs.forEach(d => { m[d.id] = JSON.parse(JSON.stringify(d.data())); });
+      Store.adapts = m; Store.adaptsLoaded = true;
+      renderWeek();
+    }, () => {});
     db.collection('pushes').onSnapshot(snap => {
       const m = {};
       snap.docs.forEach(d => { m[d.id] = JSON.parse(JSON.stringify(d.data())); });
@@ -540,10 +567,26 @@ async function storeRemove(id) {
   if (Store.db) await Store.db.collection('activities').doc(id).delete();
   else { Store.acts = Store.acts.filter(a => a.id !== id); localSave(); }
 }
-async function storeFtp(v) {
+// FTP mit Datum: Vergangenes bleibt bei der damals gültigen FTP (Wattziele, TSS, Analyse)
+async function storeFtp(v, d) {
+  const from = d || dkey(TODAY);
+  if (!Store.ftpHist.length) Store.ftpHist = [{ d: '2000-01-01', ftp: Store.ftp }];
+  Store.ftpHist = Store.ftpHist.filter((x, i) => !i || x.d < from).concat({ d: from, ftp: v });
   Store.ftp = v;
-  if (Store.db) { try { await Store.db.doc('settings/main').set({ ftp: v }); } catch (e) { toast('FTP konnte nicht gespeichert werden.'); } }
+  if (Store.db) { try { await Store.db.doc('settings/main').set(settingsDoc()); } catch (e) { toast('FTP konnte nicht gespeichert werden.'); } }
   else localSave();
+}
+function ftpOn(d) {
+  const h = Store.ftpHist; if (!h.length) return Store.ftp;
+  let f = h[0].ftp; for (const x of h) if (x.d <= d) f = x.ftp;
+  return f;
+}
+const ftpAt = ts => ftpOn(dkeyTs(ts));
+// Wattangaben im Plan stehen für die Plan-FTP und werden auf die gültige FTP umgerechnet
+function wScale(t, ftp) {
+  const k = (ftp || Store.ftp) / DATA.ftp;
+  if (!t || Math.abs(k - 1) < .001) return t;
+  return t.replace(/(\d{2,3})(?:–(\d{2,3}))? ?W\b/g, (m, a, b) => Math.round(a * k) + (b ? '–' + Math.round(b * k) : '') + ' W');
 }
 function toast(t) {
   const el = $('#msg'); el.textContent = t; el.hidden = false;
@@ -555,7 +598,7 @@ const sorted = () => Store.acts.slice().sort((a, b) => b.start - a.start);
 function tssOf(a) {
   const p = a.np || a.avgP;
   if (a.sport !== 'rad' || !p || !a.dur) return null;
-  const f = p / Store.ftp;
+  const f = p / ftpAt(a.start);
   return a.dur / 3600 * f * f * 100;
 }
 const actWeek = a => weekIdxOfDate(new Date(a.start * 1000));
@@ -570,7 +613,8 @@ function zwoSteps(xml) {
     const t = e.tagName, dur = Number(e.getAttribute('Duration'));
     if (t === 'Warmup' || t === 'Cooldown' || t === 'Ramp') return {dur, a:Number(e.getAttribute('PowerLow')), b:Number(e.getAttribute('PowerHigh')), kind:'ramp'};
     if (t === 'FreeRide') return {dur, a:1, b:1, kind:'free'};
-    const p = Number(e.getAttribute('Power')); return {dur, a:p, b:p, kind:'steady'};
+    const p = Number(e.getAttribute('Power')), te = e.getElementsByTagName('textevent')[0];
+    return {dur, a:p, b:p, kind:'steady', cad:Number(e.getAttribute('Cadence')) || null, msg:te ? te.getAttribute('message') : null};
   });
 }
 function workoutInfo(file) {
@@ -1106,7 +1150,7 @@ function dayRow(w, i, d, first, extra) {
   const title = ps ? ps.name : s.title;
   // Beschreibung nur bei Rolleneinheiten, Trainingslager, Rennen und Tests; sonst nur der Name
   const showDetail = !ps && (s.file || s.prog || s.type === 'B' || s.type === 'camp' || s.type === 'race' || s.tag === 'Test');
-  const detail = showDetail ? s.detail : '';
+  const sf = ftpOn(dkey(date)), detail = showDetail ? wScale(s.detail, sf) : '';
   const isOn = !!(done.length || manual);
   // Runder Haken vor dem Titel: von Hand abhaken; von Garmin erkannte Einheiten sind fest abgehakt
   const chk = s.sport ? `<button class="dchk${isOn ? ' on' : ''}" data-ddone="${i}" data-wn="${w.n}" aria-pressed="${isOn}"${done.length ? ' disabled title="Von Garmin erkannt"' : ''} aria-label="${esc(title)} am ${DOW[d]} ${done.length ? 'von Garmin als erledigt erkannt' : isOn ? 'nicht mehr als erledigt markieren' : 'als erledigt abhaken'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>` : '';
@@ -1128,7 +1172,8 @@ function dayRow(w, i, d, first, extra) {
   st += '</div>';
   const moved = d !== i ? `<span class="chip mvd">verschoben von ${DOW[i]}</span>` : '';
   const warn = moveWarning(w, i, d);
-  const wf = (s.file ? `<div class="w">Workout: ${esc(woTitle(s.file))}${s.min ? ' · ' + s.min + ' min' : ''}</div>` : '')
+  const tDone = s.tag === 'Test' && (isOn || past) ? (testAnswered(w, i) ? `<div class="w">FTP eingetragen: ${ftpOn(dkey(date))} W</div>` : `<button class="btn ghost sm" style="margin-top:6px" data-action="ftp-ask" data-wn="${w.n}" data-i="${i}">FTP eintragen</button>`) : '';
+  const wf = tDone + (s.file ? `<div class="w">Workout: ${esc(woTitle(s.file, sf))}${s.min ? ' · ' + s.min + ' min' : ''}</div>` : '')
     + (s.adapt ? `<div class="adapt">${s.adapt.msg}<small>${esc(s.adapt.why)}</small></div>` : '')
     + (warn ? `<div class="adapt warn">${esc(warn)}</div>` : '')
     + (done.length ? anaHtml(analyzeSess(w, i, s, done[0])) : '');
@@ -1181,7 +1226,7 @@ function renderWeek() {
     const push = s.gym ? '<div class="wo-m"><span>Im Gym nach diesem Ablauf fahren, nicht für MyWhoosh</span></div>' : window.INTERVALS_SYNC ? `<div class="wo-m"><span>${ps === 'sent' ? '✓ an MyWhoosh gesendet' : ps === 'changed' ? 'Geändert seit dem Senden (Tag oder Workout)' : past ? 'Termin vorbei' : 'Noch nicht an MyWhoosh gesendet'}</span>
       <button class="btn ${ps === 'changed' ? '' : 'ghost '}sm" data-action="push-one" data-i="${i}"${pushing || past ? ' disabled' : ''}>${ps === 'sent' ? 'Erneut senden' : ps === 'changed' ? 'Neu senden' : 'An MyWhoosh senden'}</button></div>` : '';
     return `<div class="wo"><div class="wo-h"><b>${DOW[dayOfSess(w, i)]} · ${esc(s.slot)}${s.adapt && s.adapt.orig ? ' · angepasst' : ''}</b><span class="muted tab">${Math.round(info.total / 60)} min · ca. ${Math.round(info.tss)} TSS</span></div>
-      <div class="muted" style="font-size:13px">${esc(woTitle(s.file))}</div>
+      <div class="muted" style="font-size:13px">${esc(woTitle(s.file, ftpOn(pushSig(w, i).date)))}</div>
       ${profileSvg(info.steps)}
       <div class="wo-m"><span class="tab">${esc(s.file)}</span><span>${orig} <button class="btn ghost sm" data-action="zip-one" data-file="${esc(s.file)}"${DL ? '' : ' disabled'}>Einzeln laden</button></span></div>${push}</div>`;
   }).join('');
@@ -1198,6 +1243,7 @@ function renderWeek() {
       </div>
       <div class="pills"><span class="chip">${esc(w.phaseName)}</span><span class="chip" style="${w.kind !== 'normal' ? 'background:var(--k-' + w.kind + ')' : ''}">${KIND[w.kind]}</span>${w.note ? `<span class="chip">${esc(w.note)}</span>` : ''}</div>
       ${prog}
+      ${dynCard(w)}
       ${weekRows(w)}
     </div>
     <div class="side">
@@ -1334,7 +1380,7 @@ function renderGarmin() {
     if (cur.dist) m.push(['Strecke', fmtDist(cur.dist, cur.sport)]);
     if (cur.avgP) m.push(['Ø Leistung', cur.avgP + ' W']);
     if (cur.np) m.push(['Normalized Power', cur.np + ' W']);
-    if (cur.sport === 'rad' && p) m.push(['Intensität (IF)', num(p / Store.ftp, 2)]);
+    if (cur.sport === 'rad' && p) m.push(['Intensität (IF)', num(p / ftpAt(cur.start), 2)]);
     if (t) m.push(['TSS', String(Math.round(t))]);
     if (cur.avgHr) m.push(['Ø Herzfrequenz', cur.avgHr + ' bpm']);
     if (cur.maxHr) m.push(['Max. Herzfrequenz', cur.maxHr + ' bpm']);
@@ -1488,8 +1534,8 @@ function bestPower(a, sec) {
    zu Z2, zu Sweet Spot statt VO2max oder um einen Block gekürzt. Nichts wird gespeichert:
    die Anpassung ergibt sich bei jedem Rendern aus den Aktivitäten. */
 const ADAPT_WO = {};   // erzeugte Workouts: Dateiname -> { xml, title }
-const woXml = f => DATA.workouts[f] || (ADAPT_WO[f] && ADAPT_WO[f].xml);
-const woTitle = f => DATA.titles[f] || (ADAPT_WO[f] && ADAPT_WO[f].title) || f;
+const woXml = (f, ftp) => DATA.workouts[f] ? wScale(DATA.workouts[f], ftp) : ADAPT_WO[f] && (ADAPT_WO[f].base ? wScale(ADAPT_WO[f].xml, ftp) : ADAPT_WO[f].xml);
+const woTitle = (f, ftp) => DATA.titles[f] ? wScale(DATA.titles[f], ftp) : ADAPT_WO[f] ? (ADAPT_WO[f].base ? wScale(ADAPT_WO[f].title, ftp) : ADAPT_WO[f].title) : f;
 const xa = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fr = v => Math.round(v * 1000) / 1000;
 function makeZwo(name, desc, steps) {
@@ -1507,7 +1553,7 @@ function spinZones(a, hrMax) {
   let hi = 0, thr = 0, by;
   if (s.p && s.p.some(v => v > 0)) {
     by = 'Leistung';
-    s.p.forEach(v => { if (v == null) return; const f = v / Store.ftp; if (f >= 1.06) hi += s.step; else if (f >= .88) thr += s.step; });
+    s.p.forEach(v => { if (v == null) return; const f = v / ftpAt(a.start); if (f >= 1.06) hi += s.step; else if (f >= .88) thr += s.step; });
   } else if (s.hr && hrMax) {
     by = 'Puls';
     const hb = hrBounds(hrMax);
@@ -1606,21 +1652,323 @@ function shortenA(file) {
   const min = Math.round(steps.reduce((t, x) => t + x.dur, 0) / 60);
   return { slug: 'gekuerzt', title, steps, desc: `Gekürzte Fassung von „${woTitle(file)}“ (${min} min), weil das Spinning schon viel Schwellenarbeit hatte.` };
 }
-const sessOf = (w, i) => w.sessions[i] && w.sessions[i].type === 'A' ? adaptA(w) : w.sessions[i];
+/* ---------- Plan an die Trainingsdaten anpassen ----------
+   Gilt nur für die laufende und die nächste Woche und nur für noch offene Einheiten; am Tag der Einheit wird die
+   Anpassung gespeichert (Store.adapts), danach bleibt sie für Analyse und Verlauf gleich. Tests, Taper und
+   Trainingslager bleiben unverändert.
+   Regeln:
+   - HRV (7-Nächte-Mittel unter Basis − 0,5 SD), Ruhepuls (≥ 5 über Basis), Form (CTL − ATL ≤ −30): gelten für die nächsten 3 Tage.
+     Ein Signal: ein Block weniger. Zwei Signale: nur Z2.
+   - Weniger als die Hälfte der Radeinheiten in 2 Wochen oder 10 Tage ohne Rad: nichts nachholen, ein Block weniger.
+   - Dauer höchstens 25 % über der längsten Fahrt der letzten 4 Wochen.
+   - Puls-Entkopplung ≥ 8 % in 2 von 3 Z2-Fahrten: Dauer nicht weiter steigern.
+   - Blöcke in 2 Einheiten mehrheitlich unter Ziel: Blöcke 3 % leichter, bis zum nächsten Test.
+   - Alles erledigt, Entkopplung unter 3 %, keine Warnsignale: lange Fahrt 10 min länger, bis zur 2-h-Grenze. */
+const dynRecentDays = (d, a, b) => { const n = daysBetween(parseISO(d), TODAY); return n >= a && n <= b; };
+function hrvState() {
+  const g = gProfile(), H = g ? g.hrv.filter(x => x.v > 0) : [];
+  const recent = H.filter(x => dynRecentDays(x.d, 0, 6)), base = H.filter(x => dynRecentDays(x.d, 7, 45));
+  if (recent.length < 4 || base.length < 14 || !H.some(x => dynRecentDays(x.d, 0, 2))) return null;
+  const mean = v => v.reduce((s, x) => s + x, 0) / v.length;
+  const r = recent.map(x => Math.log(x.v)), b = base.map(x => Math.log(x.v));
+  const m7 = mean(r), mb = mean(b), sd = Math.sqrt(b.reduce((s, x) => s + (x - mb) ** 2, 0) / (b.length - 1));
+  return { low: m7 < mb - .5 * sd, avg: Math.round(Math.exp(m7)), base: Math.round(Math.exp(mb)) };
+}
+function rhrState() {
+  const g = gProfile(), H = g ? g.rhr : [];
+  const recent = H.filter(x => dynRecentDays(x.d, 0, 2)), base = H.filter(x => dynRecentDays(x.d, 3, 33));
+  if (!recent.length || base.length < 7) return null;
+  const mean = v => v.reduce((s, x) => s + x.v, 0) / v.length, now = mean(recent), bs = mean(base);
+  return { high: now - bs >= 5, now: Math.round(now), base: Math.round(bs) };
+}
+// Radeinheit mit Datum, auch von Hand abgehakt: für Lücken und längste Fahrt
+function dynRides() {
+  const out = Store.acts.filter(a => a.sport === 'rad' && a.dur >= 600).map(a => ({ d: dkeyTs(a.start), min: a.dur / 60 }));
+  W.forEach(w => w.sessions.forEach((s, i) => {
+    if (s.sport === 'rad' && manualDone(w, s, i)) out.push({ d: dkey(addDays(w.startD, dayOfSess(w, i))), min: s.min || 60 });
+  }));
+  return out.filter(x => daysBetween(parseISO(x.d), TODAY) >= 0);
+}
+let dynCacheKey = null, dynCacheVal = null;
+function dynState() {
+  const g = Store.gprof, last = Store.acts.reduce((m, a) => Math.max(m, a.start), 0);
+  const key = [Store.acts.length, last, Object.keys(Store.dlogs).length, Object.keys(Store.moves).length, g && g.fetched, Store.ftp, dkey(TODAY)].join('|');
+  if (key === dynCacheKey) return dynCacheVal;
+  const S = { why: [] }, c = curWeek;
+  // Erledigte Radeinheiten der letzten beiden abgeschlossenen Wochen
+  let due = 0, done = 0;
+  for (const k of [c - 2, c - 1]) {
+    if (k < 0) continue;
+    W[k].sessions.forEach((s, i) => { if (s.sport === 'rad' && !s.opt) { due++; if (isDone(W[k], s, i)) done++; } });
+  }
+  S.comp = due ? done / due : null; S.due = due; S.done = done;
+  const rides = dynRides(), gaps = rides.map(x => daysBetween(parseISO(x.d), TODAY));
+  S.gap = gaps.length ? Math.min(...gaps) : null;
+  S.back = (S.comp != null && S.comp < .5) || (S.gap != null && S.gap >= 10);
+  S.longest = Math.round(Math.max(0, ...rides.filter(x => daysBetween(parseISO(x.d), TODAY) <= 28).map(x => x.min)));
+  S.cap = rides.length ? Math.max(45, Math.round(S.longest * 1.25 / 5) * 5) : null;
+  // Gleichmäßige Z2-Fahrten der letzten 3 Wochen (mit Leistung, ohne Blöcke)
+  const since = TODAY.getTime() / 1000 - 21 * 86400;
+  const z2 = Store.acts.filter(a => a.sport === 'rad' && a.start >= since && a.dur >= 2700 && a.avgP && a.np && a.np / a.avgP <= 1.05 && a.avgP / ftpAt(a.start) <= .75)
+    .sort((a, b) => b.start - a.start).slice(0, 3).map(a => ({ a, d: decoupling(a) })).filter(x => x.d);
+  S.drift = z2.map(x => x.d.dec);
+  S.hold = z2.filter(x => x.d.dec >= 8).length >= 2 ? Math.round(Math.max(...z2.map(x => x.a.dur)) / 300) * 5 : null;
+  const steady = z2.length >= 2 && z2.every(x => x.d.dec < 3);
+  // Blöcke zuletzt deutlich unter Ziel?
+  let lowSessions = 0;
+  for (let k = Math.max(0, c - 3); k <= c; k++) {
+    W[k].sessions.forEach((s, i) => {
+      if (!s.file || s.tag === 'Test') return;
+      const a = garminDone(W[k], s, i)[0]; if (!a || a.start < since) return;
+      const r = analyzeSess(W[k], i, s, a);
+      if (r && r.hit && r.hit.low * 2 >= r.hit.n) lowSessions++;
+    });
+  }
+  S.blocksLow = lowSessions >= 2;
+  // Tagesform
+  const days = pmc().days, L = days[days.length - 1];
+  S.form = L ? L.form : null; S.formLow = S.form != null && days.length >= 42 && S.form <= -30;
+  S.hrv = hrvState(); S.rhr = rhrState();
+  S.signals = [S.hrv && S.hrv.low && `HRV ${S.hrv.avg} ms (Schnitt 7 Nächte) unter deiner Basis von ${S.hrv.base} ms`,
+    S.rhr && S.rhr.high && `Ruhepuls ${S.rhr.now}, sonst ${S.rhr.base}`, S.formLow && `Form ${Math.round(S.form)}, sehr müde`].filter(Boolean);
+  S.more = !S.signals.length && !S.back && !S.blocksLow && S.comp != null && S.comp >= .9 && steady;
+  dynCacheKey = key; dynCacheVal = S;
+  return S;
+}
+function dynBlocks(P) {
+  const out = [];
+  P.forEach((x, i) => {
+    if (x.kind !== 'steady' || x.a < .76) return;
+    const g = out[out.length - 1];
+    if (g && P.slice(g.to + 1, i).reduce((t, y) => t + y.dur, 0) <= 60) g.to = i; else out.push({ from: i, to: i });
+  });
+  return out;
+}
+function dynFiller(P) {
+  const G = dynBlocks(P), inside = i => G.length && i > G[0].from && i < G[G.length - 1].to;
+  return P.map((x, i) => i).filter(i => P[i].kind === 'steady' && P[i].a < .76 && !inside(i)).sort((a, b) => P[b].dur - P[a].dur);
+}
+function dynDrop(P) {
+  const G = dynBlocks(P);
+  if (G.length >= 2) { const g = G[G.length - 1]; P.splice(g.from - 1, g.to - g.from + 2); return true; }
+  if (G.length === 1) { for (let i = G[0].from; i <= G[0].to; i++) P[i].dur = Math.max(30, Math.round(P[i].dur * .75 / 30) * 30); }
+  return false;
+}
+const dynMin = v => (v / 60 % 1 ? v + '"' : v / 60 + "'");
+// Workout nach den Vorgaben umbauen; Wattangaben auf Basis der Plan-FTP, die Anzeige rechnet sie wie überall um
+function dynBuild(w, i, s, F) {
+  const src = DATA.workouts[s.file] || (ADAPT_WO[s.file] && ADAPT_WO[s.file].xml);
+  if (!src) return s;
+  let P = zwoSteps(src);
+  if (P.some(x => x.kind === 'free')) return s;
+  const ops = F.ops, sum = () => P.reduce((t, x) => t + x.dur, 0);
+  if (ops.z2) {
+    const t = Math.max(1800, Math.round(Math.min(sum() * .75, 3600) / 300) * 300);
+    P = [{ kind: 'ramp', dur: 600, a: .52, b: .65 }, { kind: 'steady', dur: t - 900, a: .65, b: .65, msg: 'Z2 locker' }, { kind: 'ramp', dur: 300, a: .6, b: .5 }];
+  } else {
+    if (ops.pct) dynBlocks(P).forEach(g => { for (let k = g.from; k <= g.to; k++) if (P[k].a >= .76) { P[k].a = fr(P[k].a * ops.pct); P[k].b = P[k].a; } });
+    if (ops.drop) dynDrop(P);
+    if (ops.cap) {
+      for (let guard = 0; guard < 20 && sum() > ops.cap * 60; guard++) {
+        const f = dynFiller(P)[0], ex = sum() - ops.cap * 60;
+        if (f != null && P[f].dur > 300) P[f].dur -= Math.min(ex, P[f].dur - 300);
+        else if (!dynDrop(P)) break;
+      }
+    }
+    if (ops.plus) { const f = dynFiller(P)[0]; if (f != null) P[f].dur += ops.plus * 60; }
+  }
+  const G = dynBlocks(P), n = G.length, min = Math.round(sum() / 60);
+  const watt = x => Math.round(x.a * DATA.ftp);
+  const steps = P.map((x, k) => {
+    if (x.kind === 'ramp') return { ramp: x.a < x.b ? 'Warmup' : 'Cooldown', dur: x.dur, a: x.a, b: x.b };
+    const gi = G.findIndex(g => k >= g.from && k <= g.to);
+    return { dur: x.dur, p: x.a, cad: x.cad, msg: gi >= 0 && x.a >= .76 ? `Block ${gi + 1}/${n}: ${watt(x)} W` : (x.msg || 'Locker') };
+  });
+  let title = `${min} min Z2`, detail = `${min} min Z2 durchgehend.`;
+  if (n) {
+    const single = G.every(g => g.from === g.to && P[g.from].dur === P[G[0].from].dur && P[g.from].a === P[G[0].from].a);
+    const x0 = P[G[0].from], what = single ? `${n}×${dynMin(x0.dur)} @ ${watt(x0)} W` : `${n} ${n === 1 ? 'Block' : 'Blöcke'} wie im Plan`;
+    const ps = n > 1 ? P[G[1].from - 1] : null;
+    title = `${min} min, ${what}`;
+    detail = `${min} min: ${what}${ps ? `, <b>Pause ${dynMin(ps.dur)} @ ${watt(ps)} W</b>` : ''}, Rest Z2.`;
+  }
+  // Text des Plans behalten (auch Kadenz-Vorgaben), nur Dauer, Blockzahl und Watt ersetzen; sonst die allgemeine Fassung von oben
+  const kad = '', durRe = /^(\d+ min|\d+ h)\b/, retext = x => {
+    if (ops.z2 || !durRe.test(x || '')) return null;
+    let r = x.replace(durRe, min + ' min');
+    if (ops.drop && n) r = r.replace(/\d+×(?=\d+')/, n + '×').replace(/\d+ Sätze/, n + (n === 1 ? ' Satz' : ' Sätze')).replace(/^(\d+ min, )\d+x (?=\d+×)/, `$1${n}x `);
+    if (ops.pct) r = r.replace(/@ (\d{3}) W/g, (m, v) => v / DATA.ftp >= .76 ? `@ ${Math.round(v * ops.pct)} W` : m);
+    return r;
+  };
+  const planKad = ((s.detail || '').match(/Kadenz[^.]*\./) || [''])[0];
+  detail = retext(s.detail) || (ops.z2 && planKad ? detail + ' Kadenz: 85–95 U/min, rund und locker treten.' : detail + (planKad ? ' ' + planKad : ''));
+  title = retext(woTitle(s.file, DATA.ftp)) || title;
+  const sig = (ops.z2 ? 'z2' : [ops.pct ? 'q' + Math.round(ops.pct * 100) : '', ops.drop ? 'd' + ops.drop : '', ops.cap ? 'c' + ops.cap : '', ops.plus ? 'p' + ops.plus : ''].join(''));
+  const file = s.file.replace(/\.zwo$/, '') + '_dyn_' + sig + '.zwo';
+  const adapted = !ADAPT_WO[file];
+  if (adapted) {
+    delete wiCache[file];
+    ADAPT_WO[file] = { base: true, title: title + ' (angepasst)',
+      xml: makeZwo(`W${pad(w.n)} ${DOW[dayOfSess(w, i)]} (angepasst): ${title}`, F.why + (kad ? ' ' + kad : ''), steps) };
+  }
+  return Object.assign({}, s, { file, min, detail: detail + (kad ? ' ' + kad : ''), tag: ops.z2 ? 'Z2' : s.tag,
+    adapt: { msg: F.msg + (s.adapt && s.adapt.msg ? ' ' + s.adapt.msg : ''), why: F.why, orig: (s.adapt && s.adapt.orig) || s.file } });
+}
+// Vorgaben für eine Einheit aus dem Zustand ableiten
+function dynPlan(w, i, s) {
+  const c = curWeek, k = w.n - 1;
+  if (!Store.actsLoaded || k < c || k > c + 1 || w.kind === 'taper' || w.camp || Store.adaptOff[w.n]) return null;
+  const date = addDays(w.startD, dayOfSess(w, i)), off = daysBetween(TODAY, date);
+  if (off < 0 || !s.sport) return null;
+  const S = dynState(), near = k === c && off <= 2, sig = near ? S.signals : [];
+  const reason = sig.join(', ');
+  if (s.tag === 'Test' || s.type === 'spin' || s.type === 'kraft') {
+    if (!sig.length) return null;
+    if (s.tag === 'Test') return { note: `<b>Test besser verschieben:</b> müde fällt er zu niedrig aus.`, why: reason };
+    if (s.type === 'spin') return { note: sig.length >= 2 ? '<b>Heute nur locker mitfahren</b>, die harten Intervalle auslassen.' : '<b>Heute nach Gefühl:</b> Intervalle nur so hart, wie es sich gut anfühlt.', why: reason };
+    return sig.length >= 2 ? { note: '<b>Heute nur 2 Sätze</b> pro Übung, Gewichte wie gehabt.', why: reason } : null;
+  }
+  if (!s.file) return null;
+  const src = DATA.workouts[s.file] || (ADAPT_WO[s.file] && ADAPT_WO[s.file].xml);
+  const P = src ? zwoSteps(src) : [];
+  if (!P.length || P.some(x => x.kind === 'free')) return null;
+  const blocks = dynBlocks(P).length, total = Math.round(P.reduce((t, x) => t + x.dur, 0) / 60);
+  const ops = {}, msg = [], why = [];
+  if (sig.length >= 2) { ops.z2 = true; msg.push('<b>Heute nur Z2:</b> zwei Signale für Ermüdung.'); why.push(reason); }
+  else if (sig.length === 1 && blocks) { ops.drop = 1; msg.push('<b>Ein Block weniger:</b> ein Signal für Ermüdung.'); why.push(reason); }
+  if (!ops.z2) {
+    if (S.back && blocks && !ops.drop) { ops.drop = 1; msg.push('<b>Wiedereinstieg:</b> ein Block weniger, Verpasstes nicht nachholen.'); why.push(S.gap >= 10 ? `${S.gap} Tage ohne Rad` : `${S.done} von ${S.due} Radeinheiten in den letzten 2 Wochen`); }
+    if (S.blocksLow && blocks) { ops.pct = .97; msg.push('<b>Blöcke 3 % leichter:</b> sie lagen zuletzt zweimal unter Ziel.'); why.push('Der nächste FTP-Test zeigt, ob die FTP noch stimmt'); }
+    if (S.cap && total > S.cap) { ops.cap = S.cap; msg.push(`<b>Auf ${S.cap} min begrenzt:</b> nicht zu viel auf einmal steigern.`); why.push(`Längste Fahrt der letzten 4 Wochen: ${S.longest} min`); }
+    if (S.hold && total > S.hold && (!ops.cap || S.hold < ops.cap)) { ops.cap = S.hold; msg.push(`<b>Dauer bleibt bei ${S.hold} min:</b> der Puls ist zuletzt deutlich gestiegen.`); why.push(`Entkopplung ${S.drift.map(x => num(x, 1) + ' %').join(', ')}`); }
+    if (S.more && w.kind === 'normal' && !Object.keys(ops).length) {
+      const lim = s.type === 'A' ? 90 : 120, bIdx = w.sessions.findIndex(x => x.type === 'B' && !x.opt && x.tag === 'lang' && x.file);
+      const bFull = bIdx >= 0 && Math.round(zwoSteps(DATA.workouts[w.sessions[bIdx].file]).reduce((t, x) => t + x.dur, 0) / 60) >= 120;
+      if (total + 10 <= lim && ((i === bIdx) || (s.type === 'A' && bFull))) { ops.plus = 10; msg.push('<b>10 min länger:</b> alles erledigt und dein Puls bleibt stabil.'); why.push(`Entkopplung ${S.drift.map(x => num(x, 1) + ' %').join(', ')}`); }
+    }
+  }
+  return Object.keys(ops).length ? { ops, msg: msg.join(' '), why: why.join('. ') } : null;
+}
+const dynMade = {};
+function dynSess(w, i, s) {
+  if (!s) return s;
+  const frozen = Store.adapts[dayKey(w.n, i)];
+  let F = frozen && !Store.adaptOff[w.n] ? frozen : null;
+  if (!F) {
+    if (isDone(w, w.sessions[i], i)) return s;
+    F = dynPlan(w, i, s);
+  }
+  if (!F) return s;
+  if (F.note) return Object.assign({}, s, { adapt: { msg: F.note + (s.adapt && s.adapt.msg ? ' ' + s.adapt.msg : ''), why: F.why } });
+  const key = [dayKey(w.n, i), s.file, JSON.stringify(F)].join('|');
+  return dynMade[key] || (dynMade[key] = dynBuild(w, i, s, F));
+}
+// Einheit von heute festhalten, damit sie nach dem Fahren gleich bleibt
+function dynFreeze() {
+  if (!Store.settingsLoaded || !Store.adaptsLoaded || !Store.actsLoaded) return;
+  const w = W[curWeek]; if (!w) return;
+  w.sessions.forEach((s, i) => {
+    const key = dayKey(w.n, i);
+    if (Store.adapts[key] || !s.file || daysBetween(TODAY, addDays(w.startD, dayOfSess(w, i))) !== 0 || isDone(w, s, i)) return;
+    const F = dynPlan(w, i, w.sessions[i].type === 'A' ? adaptA(w) : s);
+    if (!F || !F.ops) return;
+    Store.adapts[key] = F;
+    if (Store.db) enqueue(() => Store.db.collection('adapts').doc(key).set(F)); else localSave();
+  });
+}
+function dynToggle(wn) {
+  if (Store.adaptOff[wn]) delete Store.adaptOff[wn]; else Store.adaptOff[wn] = true;
+  saveSettings(); render();
+}
+function dynCard(w) {
+  const k = w.n - 1;
+  if (k < curWeek || k > curWeek + 1 || w.kind === 'taper' || w.camp) return '';
+  const S = dynState(), off = !!Store.adaptOff[w.n];
+  const made = off ? [] : w.sessions.map((x, i) => sessOf(w, i)).filter((x, i) => x.adapt && x !== w.sessions[i] && (x.adapt.orig || /Heute|Test besser/.test(x.adapt.msg)));
+  const items = [
+    S.comp != null ? `Radeinheiten der letzten 2 Wochen: ${S.done} von ${S.due} erledigt` : 'Noch keine abgeschlossene Planwoche',
+    S.longest ? `Längste Fahrt der letzten 4 Wochen: ${S.longest} min` : 'Keine Fahrt in den letzten 4 Wochen',
+    S.drift.length ? `Puls-Entkopplung der letzten Z2-Fahrten: ${S.drift.map(x => num(x, 1) + ' %').join(', ')}` : 'Noch keine Z2-Fahrt mit Leistung in den letzten 3 Wochen',
+    S.form != null ? `Form (Fitness minus Ermüdung): ${Math.round(S.form)}` : '',
+    S.hrv ? `HRV: ${S.hrv.avg} ms im Schnitt von 7 Nächten, Basis ${S.hrv.base} ms` : 'HRV: keine aktuellen Werte. Lade vorher von Garmin, damit sie zählt.',
+    S.rhr ? `Ruhepuls: ${S.rhr.now}, sonst ${S.rhr.base}` : ''
+  ].filter(Boolean);
+  const head = off ? 'aus, diese Woche gilt der ursprüngliche Plan.' : made.length ? `${made.length} ${made.length === 1 ? 'Einheit' : 'Einheiten'} angepasst, siehe unten.` : 'Der Plan passt zu deinen Daten, nichts geändert.';
+  const btn = off || made.length ? `<button class="btn ghost sm" data-action="dyn-toggle" data-wn="${w.n}" style="margin-top:8px">${off ? 'Anpassung wieder einschalten' : 'Diese Woche wie geplant fahren'}</button>` : '';
+  return `<details class="ana ${made.length ? 'warn' : 'ok'}" style="margin-bottom:6px"><summary><b>Anpassung:</b> ${head}</summary><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${btn}</details>`;
+}
+const sessOf = (w, i) => dynSess(w, i, w.sessions[i] && w.sessions[i].type === 'A' ? adaptA(w) : w.sessions[i]);
+
+/* ---------- Abfrage nach dem FTP-Test ---------- */
+let ftpLater = {};
+const testDate = (w, i) => addDays(w.startD, dayOfSess(w, i));
+const testAnswered = (w, i) => !!Store.ftpAsked[w.n] || Store.ftpHist.slice(1).some(x => x.d >= dkey(testDate(w, i)));
+function testPending() {
+  for (const w of W) {
+    for (let i = 0; i < 7; i++) {
+      const s = w.sessions[i];
+      if (!s || s.tag !== 'Test' || testAnswered(w, i)) continue;
+      const ago = daysBetween(testDate(w, i), TODAY);
+      if (ago < 0 || ago > 21 || (ago === 0 && !isDone(w, s, i))) continue;
+      return { w, i };
+    }
+  }
+  return null;
+}
+function ftpAskClose() { const m = $('#ftpAsk'); if (m) m.remove(); }
+function ftpAskOpen(w, i) {
+  ftpAskClose();
+  const s = w.sessions[i], date = testDate(w, i), a = garminDone(w, s, i)[0], b20 = a ? bestPower(a, 1200) : null;
+  const est = b20 ? Math.round(b20 * .95) : null, el = document.createElement('div');
+  el.id = 'ftpAsk'; el.className = 'modal'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'ftpAskT');
+  el.innerHTML = `<div class="modal-c">
+    <h3 id="ftpAskT">Dein FTP-Test vom ${DOW[(date.getDay() + 6) % 7]} ${fmtDM(date)}</h3>
+    <p>${est ? `Aus deiner Aufzeichnung: 95 % von ${b20} W über 20 min.` : 'Aus der Aufzeichnung lässt sich keine FTP lesen. Trag den 20-min-Schnitt vom Display ein.'} Danach passen sich alle kommenden Wattwerte an.</p>
+    <label for="ftpAskA">20-min-Schnitt</label><div class="row"><input id="ftpAskA" type="number" inputmode="numeric" min="80" max="600" value="${b20 || ''}"><span>W</span></div>
+    <label for="ftpAskV">Neue FTP (95 % davon)</label><div class="row"><input id="ftpAskV" type="number" inputmode="numeric" min="80" max="500" value="${est || ''}"><span>W</span></div>
+    <p class="muted" id="ftpAskD">Bisher ${Store.ftp} W. Beim Ramp-Test trag den FTP-Wert aus MyWhoosh direkt unten ein.</p>
+    <div class="modal-b"><button class="btn" data-action="ftp-save" data-wn="${w.n}" data-i="${i}">Speichern</button>
+      <button class="btn ghost" data-action="ftp-later" data-wn="${w.n}">Später</button>
+      <button class="btn ghost" data-action="ftp-skip" data-wn="${w.n}">Test nicht gefahren</button></div></div>`;
+  document.body.appendChild(el);
+  const av = el.querySelector('#ftpAskA'), fv = el.querySelector('#ftpAskV'), info = el.querySelector('#ftpAskD');
+  const show = () => {
+    const v = Math.round(Number(fv.value));
+    if (v >= 80 && v <= 500 && v !== Store.ftp) {
+      const pc = Math.round((v / Store.ftp - 1) * 100);
+      info.textContent = `Bisher ${Store.ftp} W, das sind ${pc >= 0 ? '+' : '−'}${Math.abs(pc)} %.` + (Math.abs(pc) >= 15 ? ' Das ist ein großer Sprung, bitte prüfen.' : '');
+    }
+  };
+  av.addEventListener('input', () => { const v = Number(av.value); if (v > 0) fv.value = Math.round(v * .95); show(); });
+  fv.addEventListener('input', show);
+  show();
+}
+function ftpAskCheck() {
+  if (!Store.settingsLoaded || $('#ftpAsk')) return;
+  const p = testPending();
+  if (p && !ftpLater[p.w.n]) ftpAskOpen(p.w, p.i);
+}
+async function ftpAskSave(wn, i) {
+  const w = W[wn - 1], v = Math.round(Number($('#ftpAskV').value));
+  if (!(v >= 80 && v <= 500)) { toast('FTP zwischen 80 und 500 W eingeben.'); return; }
+  Store.ftpAsked[wn] = 'ok';
+  ftpAskClose();
+  await storeFtp(v, dkey(testDate(w, i)));
+  toast(`FTP ${v} W gespeichert, die Wattwerte sind angepasst. Trag sie auch in MyWhoosh ein.`);
+  render();
+}
 const sessionsOf = w => w.sessions.map((s, i) => sessOf(w, i));
 
 function formLabel(f) {
   return f > 15 ? 'sehr frisch' : f > 5 ? 'frisch, gut für Test oder Rennen' : f >= -10 ? 'ausgewogen' : f >= -30 ? 'im Aufbau, normal müde' : 'sehr müde';
 }
-function analyze() {
-  const hrMax = hrMaxSeen();
-  const R = { hrMax, est: 0, days: [], weeks: [], eff: [], effTrend: null, ftpEst: null, b20: null, b20a: null };
-  // Tagesbelastung, Fitness (42 Tage) und Ermüdung (7 Tage) als gleitende Mittel
-  const daily = {}; let first = null;
+// Tagesbelastung, Fitness (42 Tage) und Ermüdung (7 Tage) als gleitende Mittel
+function pmc() {
+  const hrMax = hrMaxSeen(), daily = {}, days = []; let first = null, est = 0;
   for (const a of Store.acts) {
     const d = midnight(new Date(a.start * 1000)), l = loadOf(a, hrMax);
     daily[dkey(d)] = (daily[dkey(d)] || 0) + l.tss;
-    if (l.est) R.est++;
+    if (l.est) est++;
     if (!first || d < first) first = d;
   }
   if (first) {
@@ -1629,9 +1977,15 @@ function analyze() {
     for (let d = first; d <= end; d = addDays(d, 1)) {
       const t = daily[dkey(d)] || 0, form = ctl - atl;
       ctl += (t - ctl) / 42; atl += (t - atl) / 7;
-      R.days.push({ d, tss: t, ctl, atl, form });
+      days.push({ d, tss: t, ctl, atl, form });
     }
   }
+  return { days, est };
+}
+function analyze() {
+  const hrMax = hrMaxSeen();
+  const R = { hrMax, est: 0, days: [], weeks: [], eff: [], effTrend: null, ftpEst: null, b20: null, b20a: null };
+  const lp = pmc(); R.days = lp.days; R.est = lp.est;
   // Wochen: geplante und erreichte Belastung, erledigte Einheiten, Bestleistungen
   R.weeks = W.map((w, i) => {
     const r = { i, n: w.n, plan: 0, planOpt: 0, act: 0, hrs: 0, mand: 0, mandDone: 0, opt: 0, optDone: 0, b5: null, b20: null };
@@ -1661,7 +2015,7 @@ function analyze() {
   if (R.b20) R.ftpEst = Math.round(R.b20 * .95);
   R.weeks.forEach(r => { r.planEff = r.plan + (r.optDone ? r.planOpt : 0); });   // Rolle A zählt zum Plan, wenn gefahren
   // Aerobe Effizienz: Watt pro Herzschlag bei lockeren Fahrten ab 30 min
-  R.eff = Store.acts.filter(a => a.sport === 'rad' && (a.np || a.avgP) && a.avgHr && a.dur >= 1800 && (a.np || a.avgP) / Store.ftp <= .85)
+  R.eff = Store.acts.filter(a => a.sport === 'rad' && (a.np || a.avgP) && a.avgHr && a.dur >= 1800 && (a.np || a.avgP) / ftpAt(a.start) <= .85)
     .sort((a, b) => a.start - b.start).map(a => ({ t: a.start / 86400, a, v: (a.np || a.avgP) / a.avgHr }));
   if (R.eff.length >= 4) {
     const n = R.eff.length, mx = R.eff.reduce((s, p) => s + p.t, 0) / n, my = R.eff.reduce((s, p) => s + p.v, 0) / n;
@@ -1994,7 +2348,7 @@ function renderChrome() {
     <button class="step" data-action="next" aria-label="Nächste Woche"${sel === W.length - 1 ? ' disabled' : ''}>›</button>`;
   $('#tabbar').innerHTML = VIEWS.map(v => `<button data-view="${v[0]}"${v[0] === view ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${v[2]}</svg><span>${v[1]}</span></button>`).join('');
 }
-function render() { renderHero(); renderStrip(); renderWeek(); renderStrengthSafe(); renderProgress(); renderGarmin(); renderPackSafe(); renderChrome(); }
+function render() { renderHero(); renderStrip(); renderWeek(); renderStrengthSafe(); renderProgress(); renderGarmin(); renderPackSafe(); renderChrome(); dynFreeze(); ftpAskCheck(); }
 
 /* ---------- Krafttraining ---------- */
 let editS = false, pendingS = false, focusNew = null;
@@ -2082,7 +2436,7 @@ function moveWarning(w, i, d) {
    erneutes Senden nach dem Verschieben oder Anpassen ersetzt den Termin statt ihn zu verdoppeln. */
 function pushSig(w, i) {
   const s = sessOf(w, i), date = addDays(w.startD, dayOfSess(w, i));
-  return { file: s.file, date: dkey(date), past: daysBetween(TODAY, date) < 0 };
+  return { file: s.file, date: dkey(date), ftp: ftpOn(dkey(date)), past: daysBetween(TODAY, date) < 0 };
 }
 // Gesendete Termine dieser Woche, deren Einheit es nicht mehr gibt (z. B. nach einer Planänderung)
 const stalePushes = w => Object.keys(Store.pushes).filter(k => {
@@ -2094,7 +2448,7 @@ function pushState(w, i) {
   const p = Store.pushes[dayKey(w.n, i)];
   if (!p) return null;
   const g = pushSig(w, i);
-  return p.file === g.file && p.date === g.date ? 'sent' : 'changed';
+  return p.file === g.file && p.date === g.date && (p.ftp || DATA.ftp) === g.ftp ? 'sent' : 'changed';
 }
 let pushing = false;
 async function pushWorkouts(w, idxs) {
@@ -2119,7 +2473,7 @@ async function pushWorkouts(w, idxs) {
     if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
     const at = Date.now();
     idxs.forEach(i => {
-      const g = pushSig(w, i), doc = { week: w.n, file: g.file, date: g.date, at };
+      const g = pushSig(w, i), doc = { week: w.n, file: g.file, date: g.date, ftp: g.ftp, at };
       Store.pushes[dayKey(w.n, i)] = doc;
       if (Store.db) enqueue(() => Store.db.collection('pushes').doc(dayKey(w.n, i)).set(doc));
     });
@@ -2164,9 +2518,17 @@ function sessForAct(a) {
   }
   return null;
 }
+function decoupling(a) {
+  const ser = a.series || {};
+  if (!ser.step || !ser.p || !ser.hr || a.dur < 1800) return null;
+  const m0 = 600, m1 = a.dur - 300, mid = (m0 + m1) / 2;
+  const p1 = serAvg(ser.p, ser.step, m0, mid), h1 = serAvg(ser.hr, ser.step, m0, mid), p2 = serAvg(ser.p, ser.step, mid, m1), h2 = serAvg(ser.hr, ser.step, mid, m1);
+  if (!(p1 && h1 && p2 && h2)) return null;
+  return { dec: ((p1 / h1) - (p2 / h2)) / (p1 / h1) * 100, p1, h1, p2, h2 };
+}
 function analyzeSess(w, i, s, a) {
   if (!a || a.sport !== 'rad') return null;
-  const ftp = Store.ftp, ser = a.series || {}, hrMax = hrMaxSeen() || a.maxHr || 0, items = [];
+  const ftp = ftpAt(a.start), ser = a.series || {}, hrMax = hrMaxSeen() || a.maxHr || 0, items = [];
   let verdict = '', tone = '';
   const ld = loadOf(a, hrMax), plan = plannedTss(s);
   items.push(`Dauer ${fmtDur(a.dur)}${s.min ? ` (geplant ${s.min} min)` : ''} · Belastung ${Math.round(ld.tss)} TSS${ld.est ? ' (geschätzt)' : ''}${plan ? `, geplant ca. ${Math.round(plan)}` : ''}`);
@@ -2176,8 +2538,8 @@ function analyzeSess(w, i, s, a) {
   if (s.type === 'spin' && s.tag === 'Test') {
     const b20 = bestPower(a, 1200);
     if (a.maxHr && hrMax) items.push(`Spitzenpuls ${a.maxHr} (${Math.round(a.maxHr / hrMax * 100)} % deines höchsten gemessenen Pulses)`);
-    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). Oben und in MyWhoosh eintragen.`; tone = 'ok'; }
-    else verdict = 'Keine Leistungsdaten in der Aufzeichnung. Trag die FTP vom Display des Spinning-Rads oben ein (95 % deines 20-min-Schnitts).';
+    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). Die App fragt danach, trag sie auch in MyWhoosh ein.`; tone = 'ok'; }
+    else verdict = 'Keine Leistungsdaten in der Aufzeichnung. Trag den 20-min-Schnitt vom Display des Spinning-Rads in der Abfrage ein.';
     return { verdict, tone, items };
   }
   if (s.type === 'spin') {
@@ -2198,7 +2560,7 @@ function analyzeSess(w, i, s, a) {
   // FTP-Test: Schätzung aus den besten 20 min
   if (s.tag === 'Test' || steps.some(x => x.kind === 'free' && x.dur >= 1200)) {
     const b20 = bestPower(a, 1200);
-    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). In MyWhoosh und oben im Kopf eintragen.`; tone = 'ok'; }
+    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). Die App fragt danach, trag sie auch in MyWhoosh ein.`; tone = 'ok'; }
     else verdict = 'Für die FTP-Schätzung fehlen 20 min Leistungsdaten.';
     return { verdict, tone, items };
   }
@@ -2216,21 +2578,18 @@ function analyzeSess(w, i, s, a) {
     else if (withP.length && inT.length < withP.length) { verdict = 'Einige Blöcke unter dem Ziel. Wenn das öfter passiert, ist die FTP im Moment zu hoch angesetzt.'; tone = 'warn'; }
     else if (drift != null && drift > 12) { verdict = 'Blöcke geschafft, aber der Puls stieg deutlich. Hart an der Grenze: ausreichend erholen und gut trinken.'; tone = 'hard'; }
     else { verdict = 'Blöcke sauber im Ziel, Puls kontrolliert. Gute Einheit.'; tone = 'ok'; }
-    return { verdict, tone, items };
+    return { verdict, tone, items, hit: withP.length ? { n: withP.length, low: withP.filter(r => r.p < r.w * .95).length } : null };
   }
   // Z2-Fahrt: Entkopplung Leistung zu Puls (erste gegen zweite Hälfte, ohne Ein- und Ausfahren)
-  if (ser.step && ser.p && ser.hr && a.dur >= 1800) {
-    const m0 = 600, m1 = a.dur - 300, mid = (m0 + m1) / 2;
-    const p1 = serAvg(ser.p, ser.step, m0, mid), h1 = serAvg(ser.hr, ser.step, m0, mid), p2 = serAvg(ser.p, ser.step, mid, m1), h2 = serAvg(ser.hr, ser.step, mid, m1);
-    if (p1 && h1 && p2 && h2) {
-      const dec = ((p1 / h1) - (p2 / h2)) / (p1 / h1) * 100;
-      items.push(`Entkopplung ${num(dec, 1)} % (Puls ${Math.round(h1)} → ${Math.round(h2)} bei ${Math.round(p1)} → ${Math.round(p2)} W)`);
-      if (IF && IF > .78) { verdict = 'Für eine Z2-Fahrt zu hart. Ruhiger fahren, sonst fehlt die Frische für die harte Einheit.'; tone = 'warn'; }
-      else if (dec < 5) { verdict = 'Puls bleibt stabil: Grundlagenausdauer gut, genau so soll Z2 sein.'; tone = 'ok'; }
-      else if (dec < 8) { verdict = 'Leichte Drift gegen Ende. Normal bei längeren Fahrten, wird mit mehr Grundlage weniger.'; tone = 'ok'; }
-      else { verdict = 'Deutliche Drift: der Puls läuft weg. Mögliche Gründe: zu warm, zu wenig getrunken, müde. Oder die Grundlage braucht noch Zeit.'; tone = 'warn'; }
-      return { verdict, tone, items };
-    }
+  const dc = decoupling(a);
+  if (dc) {
+    const { dec, p1, h1, p2, h2 } = dc;
+    items.push(`Entkopplung ${num(dec, 1)} % (Puls ${Math.round(h1)} → ${Math.round(h2)} bei ${Math.round(p1)} → ${Math.round(p2)} W)`);
+    if (IF && IF > .78) { verdict = 'Für eine Z2-Fahrt zu hart. Ruhiger fahren, sonst fehlt die Frische für die harte Einheit.'; tone = 'warn'; }
+    else if (dec < 5) { verdict = 'Puls bleibt stabil: Grundlagenausdauer gut, genau so soll Z2 sein.'; tone = 'ok'; }
+    else if (dec < 8) { verdict = 'Leichte Drift gegen Ende. Normal bei längeren Fahrten, wird mit mehr Grundlage weniger.'; tone = 'ok'; }
+    else { verdict = 'Deutliche Drift: der Puls läuft weg. Mögliche Gründe: zu warm, zu wenig getrunken, müde. Oder die Grundlage braucht noch Zeit.'; tone = 'warn'; }
+    return { verdict, tone, items };
   }
   verdict = IF ? (IF > .78 ? 'Härter gefahren als geplant.' : 'Wie geplant gefahren.') : 'Ohne Leistungsdaten nur eingeschränkt auswertbar.';
   return { verdict, tone, items };
@@ -2488,6 +2847,11 @@ document.addEventListener('click', ev => {
       saveZip('MyWhoosh_' + (w.kind === 'taper' ? 'Taper' : 'W' + pad(w.n)) + '.zip', names);
     }
     else if (a === 'export-data') exportData();
+    else if (a === 'dyn-toggle') dynToggle(Number(act.dataset.wn));
+    else if (a === 'ftp-ask') { const n = Number(act.dataset.wn); ftpAskOpen(W[n - 1], Number(act.dataset.i)); }
+    else if (a === 'ftp-save') ftpAskSave(Number(act.dataset.wn), Number(act.dataset.i));
+    else if (a === 'ftp-later') { ftpLater[Number(act.dataset.wn)] = true; ftpAskClose(); }
+    else if (a === 'ftp-skip') { Store.ftpAsked[Number(act.dataset.wn)] = 'skip'; saveSettings(); ftpAskClose(); render(); }
     else if (a === 'zip-one') { const f = act.dataset.file; saveZip(f.replace(/\.zwo$/, '') + '.zip', [f]); }
     else if (a === 'g-sync') garminSync();
     else if (a === 's-sync') stravaSync();
@@ -2566,7 +2930,7 @@ document.addEventListener('change', ev => {
   else if (ev.target.dataset && ev.target.dataset.edit) editField(ev.target);
   else if (ev.target.id === 'ftpIn') {
     const v = Math.round(Number(ev.target.value));
-    if (v >= 80 && v <= 500) { storeFtp(v).then(render); } else { ev.target.value = Store.ftp; toast('FTP zwischen 80 und 500 W eingeben.'); }
+    if (v >= 80 && v <= 500) { storeFtp(v).then(() => { render(); toast(`FTP ${v} W gespeichert, kommende Wattwerte angepasst. Trag sie auch in MyWhoosh ein.`); }); } else { ev.target.value = Store.ftp; toast('FTP zwischen 80 und 500 W eingeben.'); }
   }
 });
 document.addEventListener('focusout', () => {
