@@ -35,10 +35,6 @@ def mit_kadenz(txt):
 
 # ---------------------------------------------------------------- Wochen
 # (Woche, Datum, Pflicht-Rolleneinheiten, A (optional), B, Typ)  Typ: "" | "d" (Entlastung) | "t" (FTP-Test)
-TEST_A = ("<b>FTP-Test</b> (Ramp- oder 20-min-Test): 15' einfahren, 3×1' @ 200 W "
-          "mit je <b>1' Pause</b> @ 110 W, <b>5' locker</b> @ 110 W, Test, "
-          "10' ausfahren. Danach fragt die App nach der neuen FTP, trag sie auch in MyWhoosh ein.")
-
 # Dienstag: Spinning-Kurs; ab Woche 15 (8.2.) Rolle C. Donnerstag ab Woche 15 Schwimmen nach eigenem Programm (SWIM)
 # Rolle C (Dienstag, Intervalle statt Spinning) ab Woche 15
 C_TXT = {
@@ -46,7 +42,7 @@ C_TXT = {
     16: "50 min: 15' einfahren, 3×3' @ 210 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
     17: "65 min: 15' einfahren, 5×4' @ 215 W, <b>Pause 4' @ 110 W</b>, Rest Z2.",
     18: "60 min: 15' einfahren, 3 Sätze 8× 30\" @ 270 W / 30\" @ 110 W, <b>Satzpause 5' @ 110 W</b>, Rest Z2.",
-    19: "60 min Z2 mit 4×30\" @ 230 W, <b>dazwischen 90\" locker</b>. Tag nach dem FTP-Test, nicht mehr.",
+    19: "65 min: 15' einfahren, 4×5' @ 210 W, <b>Pause 4' @ 110 W</b>, Rest Z2.",
     20: "50 min: 15' einfahren, 3×3' @ 215 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
     21: "70 min: 15' einfahren, 4×6' im Wechsel 2' @ 205 W / 1' @ 175 W, <b>Pause 4' @ 110 W</b>, Rest Z2. Übt Tempowechsel am Anstieg.",
     22: "70 min: 15' einfahren, 5×4' @ 220 W, <b>Pause 3' @ 110 W</b>, Rest Z2.",
@@ -81,7 +77,7 @@ for _w, (_m, _l) in SWIM.items():  # Summe prüfen
 def swim_txt(n, sep="<br>"):
     m, lines = SWIM[n]
     return "<b>%s km</b>: " % ("%.1f" % (m / 1000)).replace(".", ",") + sep.join(lines) + "."
-DI = {2: "<b>Spinning · FTP-Test</b>: 20 min so gleichmäßig hart wie möglich",
+DI = {2: "<b>Spinning · FTP-Test</b>: Stufentest, alle 4 min +25 W bis zur Erschöpfung",
       8: "Frei: kein Spinning. Mo 21.12. Intervalle im Gym (siehe links), Do 24.12. 45 min locker im Gym (optional), 25./26.12. frei",
       9: "Spinning. <b>So 3.1. Geburtstag: frei</b>, Kraft 2 entfällt"}
 
@@ -97,7 +93,7 @@ phases.append(('Phase 1: Grundlage (2.11. – 13.12.)', [
 ]))
 
 phases.append(('Phase 2: Aufbau (14.12. – 24.1.)', [
-    (7, '14.12.', 1, TEST_A, "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", 't'),
+    (7, '14.12.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", ''),
     (8, '21.12.', 1, "Im Gym statt Rolle B: 70 min, 10' einfahren, 2×10' @ 170 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'Frei (Weihnachten). Rolle B ist auf Montag gewandert.', 'd'),
     (9, '28.12.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min Z2 mit 3×5' @ 154 W, <b>Pause 5' @ 120 W</b>", ''),
     (10, '4.1.', 1, '70 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min: 15' einfahren, 2×15' @ 159 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
@@ -106,13 +102,13 @@ phases.append(('Phase 2: Aufbau (14.12. – 24.1.)', [
 ]))
 
 phases.append(('Phase 3: Build (25.1. – 21.3.)', [
-    (13, '25.1.', 1, TEST_A, "90 min: 15' einfahren, 3×8' @ 180 W bei 60–70 U/min, <b>Pause 5' @ 120 W</b> (90 U/min), Rest Z2", 't'),
+    (13, '25.1.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min: 15' einfahren, 3×8' @ 180 W bei 60–70 U/min, <b>Pause 5' @ 120 W</b> (90 U/min), Rest Z2", ''),
     (14, '1.2.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag ist Spinning.', "90 min: 15' einfahren, 2×20' @ 160 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
     (15, '8.2.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "90 min: 15' einfahren, 3×10' @ 180 W bei 60–70 U/min, <b>Pause 5' @ 120 W</b> (90 U/min), Rest Z2", ''),
     (16, '15.2.', 1, '45 min ganz locker, Z1–Z2 (100–130 W). Optional.', "75 min: 10' einfahren, 2×10' @ 188 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
     (17, '22.2.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "90 min: 15' einfahren, 4×10' @ 183 W (Kadenz im Wechsel 65 / 90 U/min), <b>Pause 4' @ 120 W</b>, Rest Z2", ''),
     (18, '1.3.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "90 min: 15' einfahren, 3×12' @ 183 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
-    (19, '8.3.', 1, TEST_A, "90 min: 15' einfahren, 3×15' @ 175 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 't'),
+    (19, '8.3.', 1, '75 min Z2 (115–140 W) durchgehend, ruhig rollen. Optional; am Dienstag kommt Rolle C.', "90 min: 15' einfahren, 3×15' @ 175 W, <b>Pause 5' @ 120 W</b>, Rest Z2", ''),
     (20, '15.3.', 1, '45 min ganz locker, Z1–Z2 (100–130 W). Optional.', "75 min: 10' einfahren, 2×10' @ 190 W, <b>Pause 5' @ 120 W</b>, Rest Z2", 'd'),
 ]))
 
@@ -130,7 +126,7 @@ phases.append(('Phase 4: Rennspezifisch (22.3. – 25.4.)', [
 # Progressive Steigerung um etwa 10 % pro Woche, jede 4. Woche Entlastung (rund 25–30 % kürzer).
 # Rolle höchstens 2 h; Rolle A (Montag, optional) bis 90 min. Danach wächst der Reiz über die Blöcke in B
 # und über längere Ausfahrten draußen.
-A_MIN = {3: 65, 5: 70, 6: 75, 9: 75, 10: 80, 11: 85, 14: 90, 15: 90, 17: 90, 18: 90, 21: 90, 22: 90, 23: 75}
+A_MIN = {3: 65, 5: 70, 6: 75, 7: 75, 9: 75, 10: 80, 11: 85, 13: 85, 14: 90, 15: 90, 17: 90, 18: 90, 19: 90, 21: 90, 22: 90, 23: 75}
 B_MIN = {3: 90, 5: 100, 6: 105, 7: 110, 9: 120, 10: 120, 11: 120, 12: 90, 13: 120, 14: 120, 15: 120, 16: 90,
          17: 120, 18: 120, 19: 120, 20: 90, 24: 80}
 

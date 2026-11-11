@@ -135,16 +135,6 @@ def APRE(wk):
         [wu(10), FILL] + reps(3, 60, 175, 120, 110) + [cd(5, 110, 100)], 45)
 
 
-def TEST(wk):
-    steps = [wu(15), st(60, 200, None, "Aktivierung 1/3: 200 W"), st(60, 110), st(60, 200, None, "Aktivierung 2/3: 200 W"),
-             st(60, 110), st(60, 200, None, "Aktivierung 3/3: 200 W"), st(300, 110, None, "5 min locker vor dem Test"),
-             ("free", 1200, "20-min-Test: gleichmaessig so hart wie moeglich. FTP = 95 % vom Schnitt"), cd(10)]
-    add(wk, "Mo", "A", "FTP-Test", "FTP-Test (20 min)",
-        "15' Einfahren, 3x1' @ 200 W mit 1' Pause @ 110 W, 5' locker @ 110 W, 20-min-Test ohne ERG, 10' Ausfahren. "
-        "FTP = 95 % des 20-min-Schnitts. Alternativ den Ramp-Test in MyWhoosh nutzen.",
-        steps)
-
-
 def B(wk, title, slug, desc, steps, total):
     if wk in B_MIN:  # längere Z2-Dauer ab Woche 3: der Z2-Rest (FILL) wächst, die Blöcke bleiben
         total = B_MIN[wk]
@@ -199,7 +189,7 @@ B(6, "90 min Z2, 4x5' @ 95-100 U/min", "90min_Z2_Kadenz",
   [wu(10), z2(20)] + reps(4, 300, 135, 300, 110, 97, 85) + [FILL], 90)
 
 # -------- Phase 2 (W7-12)
-TEST(7)
+A(7, 75)
 B(7, "90 min Z2, 3x5' @ 154 W", "90min_3x5min_154W", "10' Einfahren, 20' Z2, 3x5' @ 154 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(10), z2(20)] + reps(3, 300, 154, 300, 120) + [FILL], 90)
 B(8, "70 min, 2x10' @ 170 W", "70min_2x10min_170W", "Entlastungswoche. 10' Einfahren, 2x10' @ 170 W, Pause 5' @ 120 W, Rest Z2.",
@@ -216,7 +206,7 @@ B(12, "75 min, 2x12' @ 174 W", "75min_2x12min_174W", "Entlastungswoche. 10' Einf
   [wu(10)] + reps(2, 720, 174, 300, 120) + [FILL], 75)
 
 # -------- Phase 3 (W13-20)
-TEST(13)
+A(13, 85)
 B(13, "90 min, 3x8' @ 180 W, 65 U/min", "90min_3x8min_180W_Kraft",
   "15' Einfahren, 3x8' @ 180 W bei 65 U/min, Pause 5' @ 120 W bei 90 U/min, Rest Z2.",
   [wu(15)] + reps(3, 480, 180, 300, 120, 65, 90) + [FILL], 90)
@@ -236,7 +226,7 @@ B(17, "90 min, 4x10' @ 183 W, Kadenzwechsel", "90min_4x10min_183W_Kadenz",
   [wu(15)] + reps(4, 600, 183, 240, 120, [65, 90, 65, 90], None) + [FILL], 90)
 B(18, "90 min, 3x12' @ 183 W", "90min_3x12min_183W", "15' Einfahren, 3x12' @ 183 W, Pause 5' @ 120 W, Rest Z2.",
   [wu(15)] + reps(3, 720, 183, 300, 120) + [FILL], 90)
-TEST(19)
+A(19, 90)
 B(19, "90 min, 3x15' @ 175 W", "90min_3x15min_175W", "15' Einfahren, 3x15' @ 175 W (Sweet Spot), Pause 5' @ 120 W, Rest Z2.",
   [wu(15)] + reps(3, 900, 175, 300, 120) + [FILL], 90)
 B(20, "75 min, 2x10' @ 190 W", "75min_2x10min_190W", "Entlastungswoche. 10' Einfahren, 2x10' @ 190 W, Pause 5' @ 120 W, Rest Z2.",
@@ -261,9 +251,8 @@ C(17, "65 min, 5x4' @ 215 W", "65min_5x4min_215W", "15' Einfahren, 5x4' @ 215 W,
 C(18, "60 min, 3x 8x30/30 @ 270 W", "60min_3x8x30s_270W",
   "15' Einfahren, 3 Saetze 8x 30\" @ 270 W / 30\" @ 110 W, Satzpause 5' @ 110 W, Rest Z2, 5' Ausfahren.",
   [wu(15)] + thirty(3, 8, 270, 110, 5) + [FILL, cd(5)], 60)
-C(19, "60 min Z2, 4x30\" Steigerung", "60min_Z2_Steigerungen",
-  "Tag nach dem FTP-Test: 10' Einfahren, Z2, 4x30\" @ 230 W mit 90\" locker, 5' Ausfahren. Nicht mehr.",
-  [wu(10), FILL] + reps(4, 30, 230, 90, 120) + [cd(5)], 60)
+C(19, "65 min, 4x5' @ 210 W", "65min_4x5min_210W", "15' Einfahren, 4x5' @ 210 W, Pause 4' @ 110 W, Rest Z2, 5' Ausfahren.",
+  [wu(15)] + reps(4, 300, 210, 240, 110) + [FILL, cd(5)], 65)
 C(20, "50 min, 3x3' @ 215 W", "50min_3x3min_215W", "Entlastungswoche. 15' Einfahren, 3x3' @ 215 W, Pause 3' @ 110 W, Rest Z2, 5' Ausfahren.",
   [wu(15)] + reps(3, 180, 215, 180, 110) + [FILL, cd(5)], 50)
 C(21, "70 min, 4x6' Over-Under 205/175 W", "70min_4x6min_OverUnder",
@@ -302,8 +291,8 @@ readme = f"""MyWhoosh-Workouts fuer Eschborn-Frankfurt 2027
 ================================================
 
 Alle Zielwerte sind in Prozent der FTP gespeichert (FTP {FTP} W = 100 %).
-Setze deine FTP im MyWhoosh-Profil auf {FTP} W. Nach jedem FTP-Test (W7, W13, W19)
-traegst du die neue FTP ein, dann passen sich alle Workouts automatisch an.
+Setze deine FTP im MyWhoosh-Profil auf {FTP} W. Aendert sich deine FTP (die App schaetzt sie aus deinen Fahrten),
+traegst du den neuen Wert ein, dann passen sich alle Workouts automatisch an.
 
 Import (Stand der Recherche, bitte mit einer Datei testen):
 1. Im Browser den MyWhoosh Workout Builder / Workout-Editor oeffnen und einloggen.
@@ -311,14 +300,13 @@ Import (Stand der Recherche, bitte mit einer Datei testen):
 3. Als Workout speichern bzw. "Export to MyWhoosh". Es erscheint im Ordner "MyWorkout".
    Falls es nicht auftaucht: MyWhoosh neu starten.
 4. Im Workout laeuft der Kickr im ERG-Modus (Zielleistung wird vorgegeben).
-   Der 20-min-FTP-Test ist als freie Fahrt (ohne ERG) angelegt.
 
 Hinweise
 - Pausen sind eigene Schritte mit Ziel-Watt (110 W nach A-Bloecken, 120 W in B).
 - In W23 gibt es keine B-Datei: dort steht eine Ausfahrt draussen im Plan.
 - In W25 gibt es keine Dateien: Trainingslager draussen (So 18.4. - Fr 23.4.).
 - Plan startet am Montag 2.11.2026. Jede Woche: B (Samstag) fest, A (Montag, Z2) optional, Freitag Ruhetag.
-  In Entlastungswochen ist A eine lockere 45-min-Einheit, in W7/W13/W19 der FTP-Test. W26 ist die Rennwoche mit drei kurzen Taper-Dateien.
+  In Entlastungswochen ist A eine lockere 45-min-Einheit. W26 ist die Rennwoche mit drei kurzen Taper-Dateien.
 - Ab W15 (8.2.) gibt es kein Spinning und kein Schwimmen mehr: Dienstag Rolle C (Intervalle), Donnerstag Schwimmen (Programm in der App).
 
 Katalog
