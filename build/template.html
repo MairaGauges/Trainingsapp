@@ -1098,6 +1098,16 @@ async function importFiles(files) {
 }
 
 /* ---------- Darstellung ---------- */
+/* Ziel bis Mai: vom zuletzt gesetzten FTP-Wert aus +6 bis +14 % über den ganzen Plan (26 Wochen),
+   anteilig für die Zeit, die bis zum Rennen bleibt. Ändert sich die FTP, ändert sich das Ziel mit. */
+function ftpGoalTxt() {
+  const h = Store.ftpHist, last = h.length > 1 ? h[h.length - 1] : null;
+  const from = last ? new Date(last.d + 'T00:00:00') : W[0].startD;
+  const r = Math.max(0, Math.min(1, daysBetween(from, RACE) / (26 * 7)));
+  if (r < .05) return 'Rennwoche: die FTP steht jetzt.';
+  const r5 = v => Math.round(v / 5) * 5, lo = r5(Store.ftp * (1 + .06 * r)), hi = r5(Store.ftp * (1 + .14 * r));
+  return `Ziel bis Mai: ${Math.max(lo, Store.ftp)}–${Math.max(hi, Store.ftp + 5)} W (Schätzung)`;
+}
 function renderHero() {
   const days = daysBetween(TODAY, RACE), w = W[curWeek];
   const toStart = daysBetween(TODAY, W[0].startD);
@@ -1112,7 +1122,7 @@ function renderHero() {
       <div class="count"><div class="n">${Math.max(days, 0)}</div><div class="l">Tage bis zum Start<br>${ph}</div></div>
       <div class="ftp"><label for="ftpIn">Deine FTP</label>
         <div class="row"><input id="ftpIn" type="number" inputmode="numeric" min="80" max="500" step="1" value="${Store.ftp}"><span class="u">W</span></div>
-        <small>Ziel bis Mai: 205–220 W (Schätzung)</small></div>
+        <small>${ftpGoalTxt()}</small></div>
     </div>`;
 }
 function renderStrip() {
