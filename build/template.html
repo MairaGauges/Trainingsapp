@@ -250,7 +250,7 @@ tr.selrow td{background:var(--accent-soft)}
 .modal-c{background:var(--panel);color:var(--ink);border-radius:24px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
 .modal-c h3{margin:0 0 8px}.modal-c p{margin:0 0 12px;font-size:14px}.modal-c label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
 .modal-c .row{display:flex;align-items:center;gap:8px}.modal-c input{font:inherit;font-size:16px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)}
-.modal-c .muted{margin-top:10px}.modal-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.modal-c .muted{margin-top:10px}.modal-c label.chip{display:inline-flex;margin:0;font-size:13px;color:var(--ink);cursor:pointer;white-space:normal}.modal-c label.chip input{width:auto;padding:0;margin:0;accent-color:var(--accent)}.modal-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .day.cont{border-top:1px dashed var(--line)}
 .chip.mvd{border-color:var(--accent);color:var(--accent)}
 .mv{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)}
@@ -1171,7 +1171,7 @@ function dayRow(w, i, d, first, extra) {
   st += '</div>';
   const moved = d !== i ? `<span class="chip mvd">verschoben von ${DOW[i]}</span>` : '';
   const warn = moveWarning(w, i, d);
-  const tDone = s.tag === 'Test' && (isOn || past) ? (testAnswered(w, i) ? `<div class="w">FTP eingetragen: ${ftpOn(dkey(date))} W</div>` : `<button class="btn ghost sm" style="margin-top:6px" data-action="ftp-ask" data-wn="${w.n}" data-i="${i}">FTP eintragen</button>`) : '';
+  const tDone = s.tag === 'Test' && (isOn || past) ? (testAnswered(w, i) ? `<div class="w">FTP eingetragen: ${ftpOn(dkey(date))} W <button class="btn ghost sm" data-action="ftp-ask" data-wn="${w.n}" data-i="${i}">Neu berechnen</button></div>` : `<button class="btn ghost sm" style="margin-top:6px" data-action="ftp-ask" data-wn="${w.n}" data-i="${i}">FTP eintragen</button>`) : '';
   const wf = tDone + (s.file ? `<div class="w">Workout: ${esc(woTitle(s.file, sf))}${s.min ? ' · ' + s.min + ' min' : ''}</div>` : '')
     + (s.adapt ? `<div class="adapt">${s.adapt.msg}<small>${esc(s.adapt.why)}</small></div>` : '')
     + (warn ? `<div class="adapt warn">${esc(warn)}</div>` : '')
@@ -1527,6 +1527,11 @@ function bestPower(a, sec) {
   }
   return best == null ? null : Math.round(best);
 }
+/* FTP aus dem Stufentest (25 W alle 4 min): Der beste 4-min-Schnitt entspricht der letzten vollen Stufe
+   plus dem Anteil der angefangenen Stufe (MAP). FTP ≈ 80 % davon (längere Stufen als beim 1-min-Ramp-Test mit 75 %). */
+const RAMP_STEP = 240, RAMP_INC = 25, RAMP_F = .8, T20_F = .95;
+const rampMap = a => bestPower(a, RAMP_STEP);
+const isRampTest = s => s && s.type === 'spin';
 
 /* ---------- Rolle A an das Spinning anpassen ----------
    Spinning (Di) liefert die Intensität meist schon. Je nach Garmin-Datei wird Rolle A (Fr)
@@ -1917,15 +1922,22 @@ function testPending() {
 function ftpAskClose() { const m = $('#ftpAsk'); if (m) m.remove(); }
 function ftpAskOpen(w, i) {
   ftpAskClose();
-  const s = w.sessions[i], date = testDate(w, i), a = garminDone(w, s, i)[0], b20 = a ? bestPower(a, 1200) : null;
-  const est = b20 ? Math.round(b20 * .95) : null, el = document.createElement('div');
+  const s = w.sessions[i], date = testDate(w, i), a = garminDone(w, s, i)[0];
+  const M = { ramp: { v: a ? rampMap(a) : null, f: RAMP_F, lbl: 'Höchste Stufe (letzte volle Stufe + angefangener Anteil)', fl: 'Neue FTP (80 % davon)',
+                      txt: v => `Aus deiner Aufzeichnung: bester 4-min-Schnitt ${v} W. Das entspricht deiner letzten vollen Stufe plus dem angefangenen Anteil der nächsten. FTP = 80 % davon.`,
+                      none: 'Aus der Aufzeichnung lässt sich die Stufe nicht lesen. Rechne: letzte volle Stufe + 25 W × (Sekunden in der nächsten Stufe ÷ 240) und trag das ein.' },
+              t20: { v: a ? bestPower(a, 1200) : null, f: T20_F, lbl: '20-min-Schnitt', fl: 'Neue FTP (95 % davon)',
+                     txt: v => `Aus deiner Aufzeichnung: 95 % von ${v} W über 20 min.`, none: 'Aus der Aufzeichnung lässt sich keine FTP lesen. Trag den 20-min-Schnitt vom Display ein.' } };
+  let m = isRampTest(s) ? 'ramp' : 't20';
+  const el = document.createElement('div');
   el.id = 'ftpAsk'; el.className = 'modal'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'ftpAskT');
   el.innerHTML = `<div class="modal-c">
     <h3 id="ftpAskT">Dein FTP-Test vom ${DOW[(date.getDay() + 6) % 7]} ${fmtDM(date)}</h3>
-    <p>${est ? `Aus deiner Aufzeichnung: 95 % von ${b20} W über 20 min.` : 'Aus der Aufzeichnung lässt sich keine FTP lesen. Trag den 20-min-Schnitt vom Display ein.'} Danach passen sich alle kommenden Wattwerte an.</p>
-    <label for="ftpAskA">20-min-Schnitt</label><div class="row"><input id="ftpAskA" type="number" inputmode="numeric" min="80" max="600" value="${b20 || ''}"><span>W</span></div>
-    <label for="ftpAskV">Neue FTP (95 % davon)</label><div class="row"><input id="ftpAskV" type="number" inputmode="numeric" min="80" max="500" value="${est || ''}"><span>W</span></div>
-    <p class="muted" id="ftpAskD">Bisher ${Store.ftp} W. Beim Ramp-Test trag den FTP-Wert aus MyWhoosh direkt unten ein.</p>
+    <div class="pills" role="radiogroup" aria-label="Art des Tests"><label class="chip"><input type="radio" name="ftpAskM" value="ramp"${m === 'ramp' ? ' checked' : ''}> Stufentest (+25 W alle 4 min)</label><label class="chip"><input type="radio" name="ftpAskM" value="t20"${m === 't20' ? ' checked' : ''}> 20-min-Test</label></div>
+    <p id="ftpAskP"></p>
+    <label for="ftpAskA" id="ftpAskL"></label><div class="row"><input id="ftpAskA" type="number" inputmode="numeric" min="80" max="700"><span>W</span></div>
+    <label for="ftpAskV" id="ftpAskFL"></label><div class="row"><input id="ftpAskV" type="number" inputmode="numeric" min="80" max="500"><span>W</span></div>
+    <p class="muted" id="ftpAskD">Bisher ${Store.ftp} W. Beim Ramp-Test in MyWhoosh trag dessen FTP-Wert direkt unten ein.</p>
     <div class="modal-b"><button class="btn" data-action="ftp-save" data-wn="${w.n}" data-i="${i}">Speichern</button>
       <button class="btn ghost" data-action="ftp-later" data-wn="${w.n}">Später</button>
       <button class="btn ghost" data-action="ftp-skip" data-wn="${w.n}">Test nicht gefahren</button></div></div>`;
@@ -1938,9 +1950,17 @@ function ftpAskOpen(w, i) {
       info.textContent = `Bisher ${Store.ftp} W, das sind ${pc >= 0 ? '+' : '−'}${Math.abs(pc)} %.` + (Math.abs(pc) >= 15 ? ' Das ist ein großer Sprung, bitte prüfen.' : '');
     }
   };
-  av.addEventListener('input', () => { const v = Number(av.value); if (v > 0) fv.value = Math.round(v * .95); show(); });
+  const setM = () => {
+    const x = M[m];
+    el.querySelector('#ftpAskP').textContent = (x.v ? x.txt(x.v) : x.none) + ' Danach passen sich alle kommenden Wattwerte an.';
+    el.querySelector('#ftpAskL').textContent = x.lbl; el.querySelector('#ftpAskFL').textContent = x.fl;
+    av.value = x.v || ''; fv.value = x.v ? Math.round(x.v * x.f) : '';
+    show();
+  };
+  el.querySelectorAll('[name=ftpAskM]').forEach(r => r.addEventListener('change', () => { m = r.value; setM(); }));
+  av.addEventListener('input', () => { const v = Number(av.value); if (v > 0) fv.value = Math.round(v * M[m].f); show(); });
   fv.addEventListener('input', show);
-  show();
+  setM();
 }
 function ftpAskCheck() {
   if (!Store.settingsLoaded || $('#ftpAsk')) return;
@@ -2535,10 +2555,11 @@ function analyzeSess(w, i, s, a) {
   if (te) items.push(`Garmin-Trainingseffekt: aerob ${num(te, 1)} (${TE_LBL(te)})${ate ? `, anaerob ${num(ate, 1)} (${TE_LBL(ate)})` : ''}`);
   if (a.g && a.g.vo2) items.push(`Garmin-VO2max-Schätzung nach dieser Fahrt: ${Math.round(a.g.vo2)}`);
   if (s.type === 'spin' && s.tag === 'Test') {
-    const b20 = bestPower(a, 1200);
+    const map = rampMap(a);
     if (a.maxHr && hrMax) items.push(`Spitzenpuls ${a.maxHr} (${Math.round(a.maxHr / hrMax * 100)} % deines höchsten gemessenen Pulses)`);
-    if (b20) { verdict = `FTP-Schätzung ${Math.round(b20 * .95)} W (95 % von ${Math.round(b20)} W über 20 min). Die App fragt danach, trag sie auch in MyWhoosh ein.`; tone = 'ok'; }
-    else verdict = 'Keine Leistungsdaten in der Aufzeichnung. Trag den 20-min-Schnitt vom Display des Spinning-Rads in der Abfrage ein.';
+    if (map) { items.push(`Stufentest mit +${RAMP_INC} W alle 4 min: bester 4-min-Schnitt ${map} W (letzte volle Stufe plus angefangener Anteil)`);
+      verdict = `FTP-Schätzung ${Math.round(map * RAMP_F)} W (80 % von ${map} W, Stufentest). Trag sie auch in MyWhoosh ein.`; tone = 'ok'; }
+    else verdict = 'Keine Leistungsdaten in der Aufzeichnung. Trag in der Abfrage deine letzte Stufe vom Display ein.';
     return { verdict, tone, items };
   }
   if (s.type === 'spin') {
